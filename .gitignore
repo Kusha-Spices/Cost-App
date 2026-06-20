@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+
+# Streamlit
+.streamlit/secrets.toml
+
+# App runtime / generated data (the live DB below is committed as the seed)
+data/backups/
+data/kusha_costing_uploaded.sqlite
+data/*.rebuild
+data/*.sqlite-wal
+data/*.sqlite-shm
+
+# OS
+.DS_Store
+Thumbs.db
