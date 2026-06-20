@@ -4,6 +4,7 @@ from database_engine import CostingDatabase, DatabaseCostingEngine
 import v5_extensions
 import v6_extensions
 import v7_extensions
+import v9_extensions
 
 DATA_DIR = Path(__file__).parent / "data"
 WORKBOOK = DATA_DIR / "Cost Sheet 2026 new(3).xlsx"
@@ -75,6 +76,31 @@ print(f"\nValidation issues found: {len(issues)}")
 export_bytes = engine.export_database_to_excel_v7()
 print(f"\nExcel export bytes: {len(export_bytes):,}")
 assert len(export_bytes) > 10000
+
+# Version 9: Excel-free MRP + product management must work end to end.
+print("\nVersion 9 checks (Excel-free MRP + product management):")
+engine.upsert_mrp_variation("Black Cardamom", 1000, 4444)
+assert round(engine.mrp_for("Black Cardamom", 1000), 2) == 4444.0
+print("  MRP upsert OK")
+
+engine.add_product_size("Black Cardamom", 500, packaging_material="", packing_required_qty=1)
+assert 500 in engine.size_options_for_product("Black Cardamom")
+engine.remove_product_size("Black Cardamom", 500)
+assert 500 not in engine.size_options_for_product("Black Cardamom")
+print("  add/remove size OK")
+
+engine.create_product_v6(product_name="SelfCheck Temp", category="Raw Material", source_or_type="Test",
+                         wholesale_ex_gst=1, retail_with_gst=1, sizes=[100], default_packaging_material="")
+assert "SelfCheck Temp" in engine.product_list()
+engine.delete_product("SelfCheck Temp")
+assert "SelfCheck Temp" not in engine.product_list()
+print("  create/delete product OK")
+
+recon = engine.cost_reconciliation_rows()
+assert len(recon) > 0
+assert engine.database_check()["meta"]["app_version"] == "9.0"
+print(f"  reconciliation rows: {len(recon)}; app_version 9.0 OK")
+
 engine.db.close()
 temp_dir.cleanup()
-print("All Version 8.3 checks passed.")
+print("\nAll Version 9.0 checks passed.")

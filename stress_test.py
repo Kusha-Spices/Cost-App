@@ -17,6 +17,7 @@ from database_engine import CostingDatabase, DatabaseCostingEngine, as_number, n
 import v5_extensions  # noqa: F401
 import v6_extensions  # noqa: F401
 import v7_extensions  # noqa: F401
+import v9_extensions  # noqa: F401
 
 
 APP_DIR = Path(__file__).parent

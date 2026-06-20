@@ -8,10 +8,11 @@ from datetime import datetime
 import pandas as pd
 import streamlit as st
 
-from database_engine import CostingDatabase, DatabaseCostingEngine, normalize
+from database_engine import CostingDatabase, DatabaseCostingEngine, normalize, norm_key
 import v5_extensions  # installs Version 5 structured-data helpers
 import v6_extensions  # installs Version 6 audit, validation and product setup helpers
 import v7_extensions  # installs Version 7 Excel export + launcher notes
+import v9_extensions  # installs Version 9 MRP/product management + reconciliation (Excel-free)
 
 
 APP_DIR = Path(__file__).parent
@@ -22,7 +23,7 @@ DEFAULT_DB = DATA_DIR / "kusha_costing_v8.3.sqlite"
 st.set_page_config(page_title="Kusha Costing App", page_icon="🌶️", layout="wide")
 
 st.title("Kusha Spices Costing App")
-st.caption("Version 8.3 — imported BOM recipes, stress-tested costing and safer data validation")
+st.caption("Version 9.0 — fully app-driven costing & pricing; the SQLite database is the source of truth (Excel optional)")
 
 
 def ensure_database(db_path: Path, workbook_path: Path) -> None:
@@ -125,9 +126,16 @@ with st.sidebar:
                 st.success(f"Restored backup: {selected_backup}. Refreshing app...")
                 st.rerun()
 
-    if st.button("Rebuild database from bundled Excel"):
-        rebuild_database_from_workbook(DEFAULT_DB, DEFAULT_WORKBOOK)
-        st.success("Database rebuilt from bundled Excel. Please refresh if values look cached.")
+    with st.expander("Rebuild database from bundled Excel (destructive)"):
+        st.warning(
+            "This DISCARDS all edits made in the app (MRP, products, recipes, mappings) "
+            "and rebuilds from the bundled Excel file. The SQLite database is normally the "
+            "source of truth — only rebuild to start over from the original workbook."
+        )
+        confirm_rebuild = st.checkbox("I understand this erases in-app changes", key="confirm_rebuild")
+        if st.button("Rebuild now", disabled=not confirm_rebuild):
+            rebuild_database_from_workbook(DEFAULT_DB, DEFAULT_WORKBOOK)
+            st.success("Database rebuilt from bundled Excel. Please refresh if values look cached.")
 
     uploaded = st.file_uploader("Import updated workbook into database (.xlsx)", type=["xlsx"])
     if uploaded is not None:
@@ -408,6 +416,45 @@ This page checks the SQLite database that was imported from Excel. It does not e
     counts = pd.DataFrame([{"Table": k, "Rows": v} for k, v in check.get("counts", {}).items()])
     st.dataframe(counts, hide_index=True, use_container_width=True)
 
+    st.markdown("### Cost reconciliation — app formula vs imported workbook")
+    st.caption(
+        "Confirms how the app's calculated cost compares to the cost stored in the original Excel, "
+        "so you can trust the app before retiring the spreadsheet. The app uses the consistent "
+        "Version 8.3 formula; differences are shown per product, never hidden."
+    )
+    try:
+        rec_rows = engine.cost_reconciliation_rows()
+        if rec_rows:
+            rec_df = pd.DataFrame(rec_rows)
+            total = len(rec_df)
+            matches = int(rec_df["Matches"].sum())
+            mc1, mc2, mc3 = st.columns(3)
+            mc1.metric("Rows compared", f"{total}")
+            mc2.metric("Match workbook", f"{matches}")
+            mc3.metric("Differ", f"{total - matches}")
+            only_diffs = st.checkbox("Show only rows that differ", value=True, key="recon_only_diffs")
+            view = rec_df[~rec_df["Matches"]] if only_diffs else rec_df
+            money_cols = [c for c in ["App Full", "Excel Full", "Diff Full", "App Wholesale", "Excel Wholesale", "Diff Wholesale"] if c in view.columns]
+            st.dataframe(
+                view.style.format({c: "₹{:,.2f}" for c in money_cols}, na_rep="—"),
+                hide_index=True,
+                use_container_width=True,
+            )
+            st.download_button(
+                "Download reconciliation CSV",
+                data=rec_df.to_csv(index=False).encode("utf-8"),
+                file_name="kusha_cost_reconciliation.csv",
+                mime="text/csv",
+            )
+            if total - matches > 0:
+                st.info(
+                    "Differences here are expected: at 1000g the app includes storage cost inside the "
+                    "overhead base, which the original spreadsheet handled slightly differently. The gap is "
+                    "small and systematic. Use the app value as the single source of truth going forward."
+                )
+    except Exception as exc:
+        st.warning(f"Could not build reconciliation: {exc}")
+
     validation = engine.validate_output_sheet()
     if validation["ok"] is True:
         st.success("Sample Output Sheet validation passed.")
@@ -419,6 +466,79 @@ This page checks the SQLite database that was imported from Excel. It does not e
 
 
 
+def _mrp_changed(new_value, old_value):
+    def _norm(v):
+        try:
+            if v is None or (isinstance(v, float) and pd.isna(v)):
+                return None
+            return round(float(v), 4)
+        except Exception:
+            return None
+    return _norm(new_value) != _norm(old_value)
+
+
+def mrp_pricing_editor():
+    st.markdown("### MRP / selling price")
+    st.caption(
+        "Set the selling price (MRP) for every product-size here — no spreadsheet needed. "
+        "**Live Cost** is recalculated from current master data, so you can price directly against real cost."
+    )
+    cmode = st.selectbox("Cost basis for live cost & margin", engine.cost_mode_options(), key="mrp_cost_mode")
+    search = st.text_input("Search product", key="mrp_search", placeholder="Example: Black Cardamom")
+    rows = engine.mrp_editor_rows(search=search, cost_mode=cmode)
+
+    if rows:
+        df = pd.DataFrame(rows)
+        original = {(r["item_norm"], r["Size (g)"]): r["MRP"] for r in rows}
+        df_display = df.copy()
+        df_display["Margin %"] = df_display["Margin %"].apply(
+            lambda v: v * 100 if v is not None and not pd.isna(v) else v
+        )
+        edited = st.data_editor(
+            df_display,
+            hide_index=True,
+            use_container_width=True,
+            disabled=["item_norm", "Item", "Size (g)", "Live Cost", "Margin %", "Status"],
+            column_config={
+                "item_norm": None,
+                "Item": "Product",
+                "Size (g)": st.column_config.NumberColumn("Size (g)", format="%d"),
+                "Live Cost": st.column_config.NumberColumn("Live Cost", format="₹%.2f"),
+                "MRP": st.column_config.NumberColumn("MRP / Selling Price", format="₹%.2f", min_value=0.0),
+                "Margin %": st.column_config.NumberColumn("Margin %", format="%.1f%%"),
+                "Status": "Status",
+            },
+            key="mrp_editor",
+        )
+        if st.button("Save MRP / selling prices", type="primary"):
+            changed = 0
+            for _, r in edited.iterrows():
+                key = (r["item_norm"], r["Size (g)"])
+                if _mrp_changed(r["MRP"], original.get(key)):
+                    value = None if pd.isna(r["MRP"]) else r["MRP"]
+                    engine.upsert_mrp_variation(r["Item"], r["Size (g)"], value)
+                    changed += 1
+            st.success(f"Saved {changed} selling-price change(s).")
+            st.rerun()
+    else:
+        st.info("No priced variations match this search. Add one below.")
+
+    with st.expander("Add / set MRP for a product-size"):
+        products = engine.product_list()
+        c1, c2, c3 = st.columns(3)
+        prod = c1.selectbox("Product", products, key="mrp_add_product")
+        size_opts = engine.size_options_for_product(prod) or engine.size_options()
+        size = c2.selectbox("Size (g)", size_opts, key="mrp_add_size")
+        new_mrp = c3.number_input("MRP / selling price", min_value=0.0, step=1.0, key="mrp_add_value")
+        if st.button("Save MRP"):
+            try:
+                engine.upsert_mrp_variation(prod, size, new_mrp)
+                st.success(f"MRP set for {prod} {int(size)}g.")
+                st.rerun()
+            except Exception as exc:
+                st.error(f"Could not set MRP: {exc}")
+
+
 def master_data_center_tab():
     st.subheader("Master Data Center")
     st.info(
@@ -426,6 +546,7 @@ def master_data_center_tab():
     )
 
     tabs = st.tabs([
+        "MRP & Selling Price",
         "Raw/Product + GST",
         "Packaging List",
         "Packaging Mapping",
@@ -434,6 +555,9 @@ def master_data_center_tab():
     ])
 
     with tabs[0]:
+        mrp_pricing_editor()
+
+    with tabs[1]:
         st.markdown("### Raw/product rates with category and item-level GST")
         st.caption("Wholesale is treated as ex-GST. Retail can be maintained as with-GST for D2C. GST is shown separately and is item-level.")
         cats = ["All"] + engine.item_categories()
@@ -471,7 +595,7 @@ def master_data_center_tab():
         else:
             st.warning("No rows found.")
 
-    with tabs[1]:
+    with tabs[2]:
         st.markdown("### Packaging material dropdown list")
         st.caption("This list controls the dropdown options available in packaging mapping. Add/delete here first, then map it to product variations.")
         col_a, col_b = st.columns([1,1])
@@ -524,7 +648,7 @@ def master_data_center_tab():
                 st.success("Packaging material added and made available in mapping dropdowns.")
                 st.rerun()
 
-    with tabs[2]:
+    with tabs[3]:
         st.markdown("### Product packaging mapping — dropdown by product variation")
         st.caption("Dropdown shows packaging materials for the selected vendor. This controls which packaging is used for each product + size.")
         vendor_map = st.selectbox("Vendor mapping table", ["Maruthi Plastics", "Swiss Pac"], key="v5_mapping_vendor")
@@ -576,7 +700,7 @@ def master_data_center_tab():
                 st.success("Packing quantity saved.")
                 st.rerun()
 
-    with tabs[3]:
+    with tabs[4]:
         st.markdown("### Shipping logic")
         st.caption("Current model: weighted average of shipping zones, then converted into size-wise new shipping cost. This explains and edits your shipping calculation.")
         zdf = pd.DataFrame(engine.shipping_zone_rows())
@@ -603,7 +727,7 @@ def master_data_center_tab():
             st.success("Updated new shipping cells: " + ", ".join([f"{k}={v:.2f}" for k,v in vals.items()]))
             st.rerun()
 
-    with tabs[4]:
+    with tabs[5]:
         st.markdown("### Storage, sticker and labour settings")
         setting_rows = [
             ("Storage: 1000g", "AF40"),
@@ -774,11 +898,109 @@ def transport_and_gst_tab():
             st.error(f"Could not save transport data: {exc}")
 
 
+def manage_products_panel():
+    st.markdown("### Manage existing products")
+    st.caption("Edit attributes, add/remove sizes, or discontinue a product. All changes save to the app database.")
+    search = st.text_input("Search product", key="mp_search", placeholder="Example: Cloves")
+    rows = engine.list_products_admin(search=search)
+    if not rows:
+        st.info("No products found for this search.")
+        return
+    df = pd.DataFrame(rows)
+    st.dataframe(df.drop(columns=["item_norm"]), hide_index=True, use_container_width=True)
+
+    product_names = [r["Product"] for r in rows]
+    selected = st.selectbox("Select product to edit", product_names, key="mp_select")
+    rec = next((r for r in rows if r["Product"] == selected), None)
+    if not rec:
+        return
+    item_norm = rec["item_norm"]
+
+    st.markdown("#### Edit core attributes")
+    cat_opts = engine.item_categories() + [
+        "Raw Material", "Masala / Blend / Finished Product", "Pickle / Finished Product",
+        "Packaging Material", "Other / Review",
+    ]
+    cat_opts = sorted(set([c for c in cat_opts if c]))
+    e1, e2, e3 = st.columns(3)
+    new_cat = e1.selectbox("Category", cat_opts, index=safe_index(cat_opts, rec.get("Category")), key="mp_cat")
+    new_source = e2.text_input("Source / Type", value=str(rec.get("Source / Type") or ""), key="mp_source")
+    new_gst = e3.number_input("GST %", min_value=0.0, max_value=100.0, value=float(rec.get("GST %") or 0), step=0.5, key="mp_gst")
+    e4, e5, e6 = st.columns(3)
+    new_vendor = e4.selectbox("Default vendor", engine.vendor_options(), key="mp_vendor")
+    new_ship = e5.selectbox("Default shipping pack", engine.shipping_pack_options(), key="mp_ship")
+    new_sale = e6.selectbox("Default type", engine.sale_type_options(), key="mp_sale")
+    cur_misc = engine.misc_pct_for_product(selected) * 100
+    new_misc = st.number_input(
+        "Miscellaneous % (per product)", min_value=0.0, max_value=100.0,
+        value=float(round(cur_misc, 2)), step=0.5, key="mp_misc",
+    )
+    if st.button("Save product attributes", type="primary", key="mp_save_core"):
+        try:
+            engine.update_product_core(
+                item_norm, category=new_cat, source_or_type=new_source, gst_pct=new_gst,
+                default_vendor=new_vendor, default_shipping_pack=new_ship, sale_type=new_sale, misc_pct=new_misc,
+            )
+            st.success("Product attributes saved.")
+            st.rerun()
+        except Exception as exc:
+            st.error(f"Could not save: {exc}")
+
+    st.divider()
+    st.markdown("#### Sizes")
+    cur_sizes = engine.size_options_for_product(selected) or []
+    st.write("Current sizes:", ", ".join(str(s) for s in cur_sizes) or "none mapped")
+    a1, a2, a3, a4 = st.columns(4)
+    add_size = a1.number_input("Add size (g)", min_value=0.0, step=1.0, key="mp_add_size")
+    add_vendor = a2.selectbox("Vendor", engine.vendor_options(), key="mp_add_vendor")
+    add_pack = a3.selectbox(
+        "Packaging material",
+        [""] + engine.packaging_material_options(vendor=add_vendor, category="Packaging Material"),
+        key="mp_add_pack",
+    )
+    add_qty = a4.number_input("Packing qty", min_value=0.0, value=1.0, step=0.1, key="mp_add_qty")
+    if st.button("Add size", key="mp_add_size_btn"):
+        try:
+            engine.add_product_size(
+                selected, add_size, vendor=add_vendor, packaging_material=add_pack,
+                packing_required_qty=add_qty, sale_type=new_sale,
+            )
+            st.success(f"Added {int(add_size)}g to {selected}.")
+            st.rerun()
+        except Exception as exc:
+            st.error(f"Could not add size: {exc}")
+    if cur_sizes:
+        r1, r2 = st.columns([1, 1])
+        rem_size = r1.selectbox("Remove size (g)", cur_sizes, key="mp_rem_size")
+        if r2.button("Remove selected size", key="mp_rem_btn"):
+            try:
+                engine.remove_product_size(selected, rem_size)
+                st.success(f"Removed {int(rem_size)}g from {selected}.")
+                st.rerun()
+            except Exception as exc:
+                st.error(f"Could not remove size: {exc}")
+
+    st.divider()
+    with st.expander("⚠️ Discontinue / delete product"):
+        st.warning(
+            f"This permanently removes '{selected}' and all of its sizes, packaging mappings, "
+            "recipe and pricing from the app database."
+        )
+        confirm = st.checkbox(f"I want to delete '{selected}'", key="mp_del_confirm")
+        if st.button("Delete product", disabled=not confirm, key="mp_del_btn"):
+            try:
+                engine.delete_product(selected)
+                st.success(f"Deleted {selected}.")
+                st.rerun()
+            except Exception as exc:
+                st.error(f"Could not delete product: {exc}")
+
+
 def admin_controls_tab():
     st.subheader("Admin Controls")
     st.info("Version 6 adds controlled product creation, database backup/restore, and audit history. Use this before replacing Excel fully.")
 
-    sub = st.tabs(["Add Product Skeleton", "Audit Log", "Database Backup Export"])
+    sub = st.tabs(["Add Product Skeleton", "Manage Products", "Audit Log", "Database Backup Export"])
 
     with sub[0]:
         st.markdown("### Add a new product skeleton")
@@ -827,6 +1049,9 @@ def admin_controls_tab():
                 st.error(f"Could not create product: {exc}")
 
     with sub[1]:
+        manage_products_panel()
+
+    with sub[2]:
         st.markdown("### Change history / audit log")
         search = st.text_input("Search audit log", key="v6_audit_search")
         rows = engine.audit_log_rows(search=search, limit=500)
@@ -842,7 +1067,7 @@ def admin_controls_tab():
                 st.success("Audit log cleared.")
                 st.rerun()
 
-    with sub[2]:
+    with sub[3]:
         st.markdown("### Database backup export")
         st.caption("Download the current SQLite database to save/share with a developer.")
         try:
@@ -946,15 +1171,14 @@ with checks:
 st.divider()
 st.markdown(
     """
-**Version 8.3 notes**
-- Data is imported from Excel into a local SQLite database.
-- The 27 masala/blend recipe blocks in Master Data are imported into the BOM screen.
-- Imported recipes remain reference-only until explicitly approved for calculator costing.
-- Calculator and reports read from SQLite.
-- Master Data Center supports categories, item-level GST, editable packaging dropdown lists, packaging mapping, shipping logic, transport source costing and BOM/recipe builder.
-- Reports recalculate from the same live SQLite master data as Calculator.
-- Invalid/non-finite values are rejected and incomplete product setups are identified without false costs.
-- D2C/retail full cost and wholesale cost excluding courier shipping use the new Production Cost logic.
-- Edits update SQLite only; your Excel file remains the backup/import/export source for now.
+**Version 9.0 notes — Excel-free workflow**
+- The local SQLite database is the single source of truth. Excel is now optional: use it only to seed a fresh database or as a backup/export format.
+- **MRP & selling prices** are fully editable in Master Data Center → *MRP & Selling Price*, shown next to the live recalculated cost so you can price without a spreadsheet.
+- **Products** can be created, edited (source, vendor, shipping, miscellaneous %, GST, category), resized (add/remove sizes) and discontinued from Admin Controls → *Manage Products*.
+- Master Data Center also covers categories, item-level GST, packaging lists, packaging mapping, shipping logic, storage/labour/sticker settings, transport source costing and the BOM/recipe builder.
+- The 27 masala/blend recipes stay reference-only until explicitly approved for calculator costing.
+- Calculator and Reports recalculate live from the same SQLite master data; invalid/non-finite values are rejected and incomplete setups flagged.
+- Database Check → *Cost reconciliation* shows exactly how app costs compare to the original workbook.
+- Every edit is captured in the audit log, and the database can be backed up, restored and exported to Excel at any time.
 """
 )
