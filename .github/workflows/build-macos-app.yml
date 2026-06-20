@@ -4,8 +4,8 @@ name: Build macOS app
 # The end user needs nothing installed — just download, unzip and double-click.
 #
 # Trigger it from the GitHub "Actions" tab (Run workflow). Optionally give a
-# "release_tag" (e.g. v9.0) and the built apps are published to a GitHub Release
-# under that tag. Pushing a v* tag does the same automatically.
+# "release_tag" (e.g. v9.0) and each built app is published to a GitHub Release
+# under that tag as soon as it is ready. Pushing a v* tag does the same.
 
 on:
   workflow_dispatch:
@@ -87,18 +87,10 @@ jobs:
           path: Kusha-Costing-App-${{ matrix.arch }}.zip
           if-no-files-found: error
 
-  release:
-    name: Publish Release
-    needs: build
-    if: ${{ github.event.inputs.release_tag != '' || startsWith(github.ref, 'refs/tags/') }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download built apps
-        uses: actions/download-artifact@v4
-        with:
-          path: apps
-
-      - name: Publish to GitHub Release
+      - name: Publish this build to the Release
+        # Each architecture publishes independently, so the Apple Silicon app
+        # appears immediately without waiting on the (often slow) Intel runner.
+        if: ${{ github.event.inputs.release_tag != '' || startsWith(github.ref, 'refs/tags/') }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.release_tag || github.ref_name }}
@@ -111,5 +103,5 @@ jobs:
 
             - **Apple Silicon** (M1/M2/M3/M4): `Kusha-Costing-App-apple-silicon.zip`
             - **Intel**: `Kusha-Costing-App-intel.zip`
-          files: apps/**/*.zip
+          files: Kusha-Costing-App-${{ matrix.arch }}.zip
           fail_on_unmatched_files: true
