@@ -56,10 +56,11 @@ jobs:
           codesign --force --deep --sign - "dist/Kusha Costing App.app"
           codesign --verify --deep --strict --verbose=2 "dist/Kusha Costing App.app" || true
 
-      - name: Smoke-test the built app
+      - name: Smoke-test the built app (windowed launch, like a double-click)
         run: |
-          "dist/Kusha Costing App.app/Contents/MacOS/KushaCostingApp" &
-          APPID=$!
+          # Launch via `open` so there is NO console — this reproduces the real
+          # Finder double-click path (where stdout/stderr are None), not a shell run.
+          open "dist/Kusha Costing App.app"
           OK=""
           for i in $(seq 1 60); do
             if curl -s -o /dev/null -w '%{http_code}' http://localhost:8501/ | grep -q 200; then
@@ -67,8 +68,12 @@ jobs:
             fi
             sleep 1
           done
-          kill $APPID 2>/dev/null || true
-          test "$OK" = "1"
+          pkill -f KushaCostingApp 2>/dev/null || true
+          if [ "$OK" != "1" ]; then
+            echo "App did not serve in time. Launch log:"
+            cat "$HOME/Library/Application Support/Kusha Costing App/launch.log" 2>/dev/null || echo "(no log)"
+            exit 1
+          fi
 
       - name: Zip the .app
         run: |
