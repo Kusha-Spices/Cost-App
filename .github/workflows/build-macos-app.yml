@@ -3,11 +3,17 @@ name: Build macOS app
 # Builds a self-contained "Kusha Costing App.app" on real macOS machines.
 # The end user needs nothing installed — just download, unzip and double-click.
 #
-# Run it from the GitHub "Actions" tab (Run workflow), or push a tag like v9.0
-# to also publish the apps to a GitHub Release.
+# Trigger it from the GitHub "Actions" tab (Run workflow). Optionally give a
+# "release_tag" (e.g. v9.0) and the built apps are published to a GitHub Release
+# under that tag. Pushing a v* tag does the same automatically.
 
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Publish a Release under this tag (e.g. v9.0). Leave blank to only upload artifacts."
+        required: false
+        default: ""
   push:
     tags:
       - "v*"
@@ -47,6 +53,7 @@ jobs:
         run: |
           "dist/Kusha Costing App.app/Contents/MacOS/KushaCostingApp" &
           APPID=$!
+          OK=""
           for i in $(seq 1 60); do
             if curl -s -o /dev/null -w '%{http_code}' http://localhost:8501/ | grep -q 200; then
               echo "App served HTTP 200"; OK=1; break
@@ -68,8 +75,29 @@ jobs:
           path: Kusha-Costing-App-${{ matrix.arch }}.zip
           if-no-files-found: error
 
-      - name: Attach to release (tag builds only)
-        if: startsWith(github.ref, 'refs/tags/')
+  release:
+    name: Publish Release
+    needs: build
+    if: ${{ github.event.inputs.release_tag != '' || startsWith(github.ref, 'refs/tags/') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download built apps
+        uses: actions/download-artifact@v4
+        with:
+          path: apps
+
+      - name: Publish to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: Kusha-Costing-App-${{ matrix.arch }}.zip
+          tag_name: ${{ github.event.inputs.release_tag || github.ref_name }}
+          name: Kusha Costing App ${{ github.event.inputs.release_tag || github.ref_name }}
+          body: |
+            Self-contained macOS app — nothing to install.
+
+            Download the build for your Mac, unzip, drag **Kusha Costing App.app**
+            to Applications, then right-click → Open the first time.
+
+            - **Apple Silicon** (M1/M2/M3/M4): `Kusha-Costing-App-apple-silicon.zip`
+            - **Intel**: `Kusha-Costing-App-intel.zip`
+          files: apps/**/*.zip
+          fail_on_unmatched_files: true
