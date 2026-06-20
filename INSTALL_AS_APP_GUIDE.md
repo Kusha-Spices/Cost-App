@@ -1,38 +1,64 @@
-# Installing Kusha Costing App for One-Click Use
+# Installing the Kusha Costing App on a Mac
 
-## Easiest internal use
+There are two ways to get a real, double-click Mac app. Option 1 needs nothing
+installed and is recommended.
 
-### Mac
-Double-click:
+## Option 1 — Download the ready-made app (recommended, no Python, no Terminal)
 
-`Run_Kusha_Costing_App.command`
+The app is built automatically on real Macs by GitHub Actions.
 
-The first launch may take a few minutes because it creates a Python environment and installs Streamlit. Later launches are faster.
+1. Go to the repository on GitHub → **Actions** tab.
+2. Open the latest **"Build macOS app"** run (or run it once with **Run workflow**).
+3. Under **Artifacts**, download the one for your Mac:
+   - **Apple Silicon** (M1/M2/M3/M4 — most Macs since 2021), or
+   - **Intel** (older Macs).
+   Not sure?  → Apple menu → *About This Mac*. "Apple M…" = Apple Silicon.
+4. Unzip the download. You get **Kusha Costing App.app**.
+5. Drag it into your **Applications** folder.
+6. **First launch only:** right-click the app → **Open** → **Open** in the dialog.
+   (macOS shows this prompt because the app is not paid-Apple-signed. After the
+   first time, just double-click it normally.)
 
-If macOS blocks it, right-click the file → Open.
+The app opens in your web browser. Your data is saved on your Mac at
+`~/Library/Application Support/Kusha Costing App/` and is kept between updates.
 
-### Windows
-Double-click:
+### Publishing a downloadable version for everyone
 
-`Run_Kusha_Costing_App_Windows.bat`
-
-Python 3 must be installed first, with "Add Python to PATH" enabled.
-
-## True software installer
-
-For a proper `.app` on Mac or `.exe` on Windows, ask a developer to package this project using PyInstaller:
+Push a tag and the same build is attached to a GitHub **Release** that anyone can
+download:
 
 ```bash
-pip install pyinstaller
-pyinstaller --name "Kusha Costing App" --onefile launcher.py
+git tag v9.0
+git push origin v9.0
 ```
 
-A production-grade version should eventually move to:
+## Option 2 — Build it yourself on a Mac (one Terminal command)
 
-- Backend: FastAPI or Django
-- Frontend: React / Next.js
-- Database: PostgreSQL
-- Hosting: AWS / Render / Railway / DigitalOcean
-- Login + roles + backups + audit logs
+If you have a Mac with Python 3 and prefer to build locally:
 
-This Version 8 package is still a local internal app, but now includes one-click launchers for Mac and Windows.
+```bash
+bash scripts/build_mac_app.sh
+```
+
+The finished **Kusha Costing App.app** is left in the `dist/` folder. Drag it to
+Applications and open it the same way as above.
+
+## Quick run without building (developer / testing)
+
+```bash
+pip install -r requirements.txt
+python run_app.py        # opens the browser automatically
+# or
+streamlit run app.py     # classic Streamlit run
+```
+
+## Notes
+
+- The downloadable app bundles Python and every dependency — users need nothing
+  installed.
+- It is not yet notarized with an Apple Developer account, which is why the first
+  launch needs the right-click → Open step. Adding notarization later removes that
+  prompt; it requires a paid Apple Developer account and can be wired into the
+  same GitHub Actions workflow.
+- A Windows build can be produced from the same `KushaCostingApp.spec` using
+  PyInstaller on a Windows machine.

@@ -19,3 +19,10 @@ data/*.sqlite-shm
 # OS
 .DS_Store
 Thumbs.db
+
+# PyInstaller / Mac app build output
+build/
+dist/
+.build-venv/
+*.app
+*.spec.bak

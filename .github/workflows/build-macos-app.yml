@@ -1,0 +1,75 @@
+name: Build macOS app
+
+# Builds a self-contained "Kusha Costing App.app" on real macOS machines.
+# The end user needs nothing installed — just download, unzip and double-click.
+#
+# Run it from the GitHub "Actions" tab (Run workflow), or push a tag like v9.0
+# to also publish the apps to a GitHub Release.
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-14   # Apple Silicon (M1/M2/M3/M4)
+            arch: apple-silicon
+          - runner: macos-13   # Intel
+            arch: intel
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build the .app
+        run: pyinstaller --noconfirm --clean KushaCostingApp.spec
+
+      - name: Smoke-test the built app
+        run: |
+          "dist/Kusha Costing App.app/Contents/MacOS/KushaCostingApp" &
+          APPID=$!
+          for i in $(seq 1 60); do
+            if curl -s -o /dev/null -w '%{http_code}' http://localhost:8501/ | grep -q 200; then
+              echo "App served HTTP 200"; OK=1; break
+            fi
+            sleep 1
+          done
+          kill $APPID 2>/dev/null || true
+          test "$OK" = "1"
+
+      - name: Zip the .app
+        run: |
+          cd dist
+          ditto -c -k --sequesterRsrc --keepParent "Kusha Costing App.app" "../Kusha-Costing-App-${{ matrix.arch }}.zip"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kusha-Costing-App-${{ matrix.arch }}
+          path: Kusha-Costing-App-${{ matrix.arch }}.zip
+          if-no-files-found: error
+
+      - name: Attach to release (tag builds only)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Kusha-Costing-App-${{ matrix.arch }}.zip

@@ -14,11 +14,5 @@ python -c "import streamlit, pandas, openpyxl" >nul 2>nul
 if errorlevel 1 (
   python -m pip install -r requirements.txt
 )
-python self_check.py
-if errorlevel 1 (
-  echo Self-check failed. Please review the error above.
-  pause
-  exit /b 1
-)
-python -m streamlit run app.py
+python run_app.py
 pause

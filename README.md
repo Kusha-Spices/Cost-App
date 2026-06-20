@@ -38,21 +38,25 @@ Key tables: `production_rows` (product list + defaults), `new_cost_variations`
 (packaging mapping + packing qty), `recipe_headers`/`recipe_ingredients` (BOM),
 `raw_material_sources` (transport), `item_catalog`, `audit_log`.
 
-## Fastest way to run
+## Install as a real Mac app (recommended)
+
+A self-contained **Kusha Costing App.app** (bundles Python + everything — nothing
+to install) is built on real Macs by GitHub Actions:
+
+1. GitHub → **Actions** → **Build macOS app** → run it / open the latest run.
+2. Download the **Artifact** for your Mac (Apple Silicon or Intel), unzip it.
+3. Drag **Kusha Costing App.app** to Applications; first launch: right-click → **Open**.
+
+To build it locally on a Mac instead: `bash scripts/build_mac_app.sh`.
+Full details in [`INSTALL_AS_APP_GUIDE.md`](INSTALL_AS_APP_GUIDE.md).
+
+## Quick run (script launchers)
 
 ### Mac
-Double-click:
-
-`Run_Kusha_Costing_App.command`
-
-If blocked by macOS, right-click → Open.
+Double-click `Run_Kusha_Costing_App.command` (right-click → Open if macOS blocks it).
 
 ### Windows
-Double-click:
-
-`Run_Kusha_Costing_App_Windows.bat`
-
-Python 3 must be installed first and added to PATH.
+Double-click `Run_Kusha_Costing_App_Windows.bat` (Python 3 must be installed and on PATH).
 
 ## Terminal run
 
@@ -81,4 +85,8 @@ The app opens in your browser. Edits you make are saved to
 
 ## Note on installation
 
-This package includes one-click launchers, not a signed standalone installer. For a real `.app` or `.exe`, a developer should package the project on the target OS using PyInstaller, Briefcase, Electron, or move it to a hosted production web stack.
+The `.app` produced above bundles Python and all dependencies, so users need
+nothing installed. It is not yet Apple-notarized (hence the first-launch
+right-click → Open step); notarization requires a paid Apple Developer account
+and can be added to the same GitHub Actions workflow later. A Windows `.exe` can
+be built from the same `KushaCostingApp.spec` on a Windows machine.

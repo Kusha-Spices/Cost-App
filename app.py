@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 import tempfile
 import shutil
@@ -16,7 +17,10 @@ import v9_extensions  # installs Version 9 MRP/product management + reconciliati
 
 
 APP_DIR = Path(__file__).parent
-DATA_DIR = APP_DIR / "data"
+# When packaged as a Mac/Windows app the code lives in a read-only bundle, so the
+# database is kept in a user-writable location supplied via KUSHA_DATA_DIR.
+DATA_DIR = Path(os.environ.get("KUSHA_DATA_DIR") or (APP_DIR / "data"))
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 DEFAULT_WORKBOOK = DATA_DIR / "Cost Sheet 2026 new(3).xlsx"
 DEFAULT_DB = DATA_DIR / "kusha_costing_v8.3.sqlite"
 

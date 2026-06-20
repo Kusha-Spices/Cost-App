@@ -13,5 +13,4 @@ source .venv/bin/activate
 if ! python -c "import streamlit, pandas, openpyxl" >/dev/null 2>&1; then
   python -m pip install -r requirements.txt
 fi
-python self_check.py
-python -m streamlit run app.py
+python run_app.py
