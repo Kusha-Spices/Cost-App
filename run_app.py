@@ -2,17 +2,20 @@
 
 Launch flow (packaged app, double-clicked):
 
-* The main process makes output safe (a windowed app has no console, so
-  stdout/stderr are None and writing to them crashes Streamlit), seeds a
-  user-writable database on first run, picks a free port, then starts the
-  Streamlit server as a CHILD process and shows the UI in a native window
-  (pywebview / macOS WebKit). If the native window can't start, it falls back
-  to opening the default browser, so the app is never worse than before.
+* The main process seeds a user-writable database on first run, picks a free
+  port, starts the Streamlit server as a CHILD process, and shows the UI in a
+  native window (pywebview / macOS WebKit). If the native window can't start, it
+  falls back to opening the default browser, so the app is never worse than a
+  browser tab.
 * The child process (KUSHA_MODE=server) runs Streamlit on the main thread,
   which is required for its signal handlers.
 
+Everything important is written to a log file (``launch.log``) so problems are
+never silent, regardless of whether the windowed app has a usable console.
+
 Works as a normal script (``python run_app.py``) and inside a PyInstaller
-"frozen" bundle.
+"frozen" bundle. ``--self-test`` just verifies the native-window backend is
+importable and exits (used by CI).
 """
 
 from __future__ import annotations
@@ -48,9 +51,23 @@ def log_path() -> Path:
     return user_data_root() / "launch.log"
 
 
+def log(msg: str) -> None:
+    """Write to the log file unconditionally, and to stdout if it works."""
+    line = f"{time.strftime('%H:%M:%S')} {msg}"
+    try:
+        print(line)
+    except Exception:
+        pass
+    try:
+        with open(log_path(), "a", encoding="utf-8") as f:
+            f.write(line + "\n")
+    except Exception:
+        pass
+
+
 def redirect_output_if_needed() -> None:
-    """A windowed (.app) launch has no console: stdout/stderr are None, which
-    makes Streamlit/Click crash on startup. Send them to a log file instead."""
+    """Some windowed builds set stdout/stderr to None; writing to them crashes
+    Streamlit. Point them at the log file as a safety net."""
     if sys.stdout is not None and sys.stderr is not None:
         return
     try:
@@ -120,6 +137,25 @@ def wait_for_server(port: str, timeout: float = 90.0) -> bool:
     return False
 
 
+def self_test() -> int:
+    """Verify the native-window backend is importable from this build, including
+    the macOS Cocoa/pyobjc backend (which pywebview loads lazily at runtime)."""
+    try:
+        import webview  # noqa: F401
+
+        extra = ""
+        if sys.platform == "darwin":
+            import webview.platforms.cocoa  # noqa: F401  (imports AppKit/WebKit/pyobjc)
+
+            extra = " cocoa+pyobjc OK"
+        log(f"SELFTEST pywebview OK version={getattr(webview, '__version__', '?')}{extra}")
+        return 0
+    except Exception as exc:
+        log(f"SELFTEST pywebview FAILED: {exc}")
+        traceback.print_exc()
+        return 3
+
+
 def run_streamlit_server(port: str) -> int:
     """Child process: run Streamlit on the main thread (signal handlers need it)."""
     app_path = str(bundle_dir() / "app.py")
@@ -138,7 +174,7 @@ def run_streamlit_server(port: str) -> int:
 
 
 def open_in_browser_and_wait(url: str, server_proc: subprocess.Popen) -> None:
-    print(f"Opening in browser: {url}")
+    log(f"Opening in browser: {url}")
     try:
         webbrowser.open(url)
     except Exception:
@@ -153,18 +189,19 @@ def show_window(url: str, server_proc: subprocess.Popen) -> None:
     """Show the UI in a native window; fall back to the browser on any problem."""
     try:
         import webview  # pywebview
-        print("pywebview import OK")
+
+        log("pywebview import OK")
     except Exception:
-        print("pywebview not available; using browser.")
+        log("pywebview not available; using browser.")
         traceback.print_exc()
         open_in_browser_and_wait(url, server_proc)
         return
     try:
-        print("Showing native window")
+        log("Showing native window")
         webview.create_window(APP_NAME, url, width=1280, height=860, min_size=(900, 600))
         webview.start()  # blocks until the window is closed
     except Exception:
-        print("Native window failed to start; using browser.")
+        log("Native window failed to start; using browser.")
         traceback.print_exc()
         open_in_browser_and_wait(url, server_proc)
 
@@ -180,13 +217,13 @@ def run_window_mode() -> int:
     env["KUSHA_DATA_DIR"] = str(data_dir)
     cmd = [sys.executable] if getattr(sys, "frozen", False) else [sys.executable, os.path.abspath(__file__)]
 
-    print(f"Starting server on port {port}: {cmd}")
+    log(f"Starting server on port {port}")
     server_proc = subprocess.Popen(cmd, env=env)
 
     url = f"http://localhost:{port}"
     if not wait_for_server(port):
         msg = f"{APP_NAME}'s engine did not start in time.\n\nLog: {log_path()}"
-        print(msg)
+        log(msg)
         show_error_dialog(msg)
         try:
             server_proc.terminate()
@@ -210,8 +247,10 @@ def run_window_mode() -> int:
 
 def main() -> int:
     redirect_output_if_needed()
+    if "--self-test" in sys.argv or os.environ.get("KUSHA_MODE") == "selftest":
+        return self_test()
     mode = os.environ.get("KUSHA_MODE", "window")
-    print(f"\n=== {APP_NAME} starting ({time.ctime()}) mode={mode} ===")
+    log(f"=== {APP_NAME} starting ({time.ctime()}) mode={mode} ===")
     if mode == "server":
         ensure_user_data()
         return run_streamlit_server(os.environ.get("KUSHA_PORT", DEFAULT_PORT))
@@ -231,8 +270,7 @@ if __name__ == "__main__":
         raise
     except BaseException:  # noqa: BLE001 - last-resort crash handler
         try:
-            redirect_output_if_needed()
-            traceback.print_exc()
+            log("FATAL: " + "".join(traceback.format_exc()))
         except Exception:
             pass
         show_error_dialog(f"{APP_NAME} could not start.\n\nLog: {log_path()}")

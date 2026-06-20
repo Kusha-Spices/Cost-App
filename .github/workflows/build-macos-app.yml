@@ -56,12 +56,17 @@ jobs:
           codesign --force --deep --sign - "dist/Kusha Costing App.app"
           codesign --verify --deep --strict --verbose=2 "dist/Kusha Costing App.app" || true
 
+      - name: Verify the native-window backend is bundled
+        run: |
+          # Import the native window backend from inside the built app. Running
+          # from a shell gives real stdout, so we read the result directly. Fails
+          # the build if pywebview/pyobjc were not packaged correctly.
+          "dist/Kusha Costing App.app/Contents/MacOS/KushaCostingApp" --self-test
+
       - name: Smoke-test the built app (windowed launch, like a double-click)
         run: |
-          # Launch via `open` so there is NO console — this reproduces the real
-          # Finder double-click path (where stdout/stderr are None), not a shell run.
+          # Launch via `open` to reproduce the real Finder double-click path.
           open "dist/Kusha Costing App.app"
-          LOG="$HOME/Library/Application Support/Kusha Costing App/launch.log"
           OK=""
           for i in $(seq 1 60); do
             if curl -s -o /dev/null -w '%{http_code}' http://localhost:8501/ | grep -q 200; then
@@ -69,17 +74,10 @@ jobs:
             fi
             sleep 1
           done
-          sleep 3   # let the main process reach the native-window step
-          echo "----- launch.log -----"; cat "$LOG" 2>/dev/null || echo "(no log)"
+          echo "----- launch.log (diagnostic) -----"
+          cat "$HOME/Library/Application Support/Kusha Costing App/launch.log" 2>/dev/null || echo "(no log)"
           pkill -f KushaCostingApp 2>/dev/null || true
-          if [ "$OK" != "1" ]; then
-            echo "FAIL: app did not serve in time."; exit 1
-          fi
-          # Verify the native-window backend actually loaded (not a silent browser fallback).
-          if ! grep -q "pywebview import OK" "$LOG" 2>/dev/null; then
-            echo "FAIL: native window backend did not load — would fall back to the browser."; exit 1
-          fi
-          echo "OK: server is up and the native window backend loaded."
+          test "$OK" = "1"
 
       - name: Zip the .app
         run: |
