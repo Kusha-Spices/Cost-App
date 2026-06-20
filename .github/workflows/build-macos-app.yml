@@ -49,6 +49,13 @@ jobs:
       - name: Build the .app
         run: pyinstaller --noconfirm --clean KushaCostingApp.spec
 
+      - name: Ad-hoc code-sign the app
+        # No paid Apple Developer cert, so sign ad-hoc. This prevents the hard
+        # "app is damaged" block and gives users the normal right-click → Open path.
+        run: |
+          codesign --force --deep --sign - "dist/Kusha Costing App.app"
+          codesign --verify --deep --strict --verbose=2 "dist/Kusha Costing App.app" || true
+
       - name: Smoke-test the built app
         run: |
           "dist/Kusha Costing App.app/Contents/MacOS/KushaCostingApp" &
