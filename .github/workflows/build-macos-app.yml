@@ -61,6 +61,7 @@ jobs:
           # Launch via `open` so there is NO console — this reproduces the real
           # Finder double-click path (where stdout/stderr are None), not a shell run.
           open "dist/Kusha Costing App.app"
+          LOG="$HOME/Library/Application Support/Kusha Costing App/launch.log"
           OK=""
           for i in $(seq 1 60); do
             if curl -s -o /dev/null -w '%{http_code}' http://localhost:8501/ | grep -q 200; then
@@ -68,12 +69,17 @@ jobs:
             fi
             sleep 1
           done
+          sleep 3   # let the main process reach the native-window step
+          echo "----- launch.log -----"; cat "$LOG" 2>/dev/null || echo "(no log)"
           pkill -f KushaCostingApp 2>/dev/null || true
           if [ "$OK" != "1" ]; then
-            echo "App did not serve in time. Launch log:"
-            cat "$HOME/Library/Application Support/Kusha Costing App/launch.log" 2>/dev/null || echo "(no log)"
-            exit 1
+            echo "FAIL: app did not serve in time."; exit 1
           fi
+          # Verify the native-window backend actually loaded (not a silent browser fallback).
+          if ! grep -q "pywebview import OK" "$LOG" 2>/dev/null; then
+            echo "FAIL: native window backend did not load — would fall back to the browser."; exit 1
+          fi
+          echo "OK: server is up and the native window backend loaded."
 
       - name: Zip the .app
         run: |

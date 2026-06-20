@@ -22,6 +22,17 @@ for pkg in ("streamlit", "altair", "pandas", "numpy", "pyarrow", "openpyxl"):
     except Exception:
         pass
 
+# Native window backend: pywebview + pyobjc (macOS WebKit). macOS only.
+if sys.platform == "darwin":
+    w_datas, w_binaries, w_hidden = collect_all("webview")
+    datas += w_datas
+    binaries += w_binaries
+    hiddenimports += w_hidden
+    hiddenimports += [
+        "objc", "Foundation", "AppKit", "WebKit", "Quartz",
+        "CoreFoundation", "Security",
+    ]
+
 # The application source must be present so Streamlit can run app.py, plus the
 # seed database/workbook.
 app_modules = [
@@ -104,12 +115,12 @@ if sys.platform == "darwin":
         name="Kusha Costing App.app",
         icon=None,
         bundle_identifier="com.kushaspices.costingapp",
-        version="9.0.0",
+        version="9.1.0",
         info_plist={
             "CFBundleName": "Kusha Costing App",
             "CFBundleDisplayName": "Kusha Costing App",
-            "CFBundleShortVersionString": "9.0",
-            "CFBundleVersion": "9.0.0",
+            "CFBundleShortVersionString": "9.1",
+            "CFBundleVersion": "9.1.0",
             "NSHighResolutionCapable": True,
             "LSMinimumSystemVersion": "11.0",
         },
