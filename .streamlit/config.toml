@@ -1,0 +1,17 @@
+# Warm "spice" theme for the Kusha Costing App.
+# Picked up automatically when running `streamlit run app.py` from the repo.
+# The packaged desktop app sets the same values via environment variables in
+# run_app.py (so the theme applies regardless of the working directory).
+[theme]
+base = "light"
+primaryColor = "#C0392B"            # spice red — buttons, highlights
+backgroundColor = "#FFFDF8"         # warm off-white page
+secondaryBackgroundColor = "#FBEFE2" # cards, sidebar, tables
+textColor = "#2B2118"               # warm near-black
+font = "sans serif"
+
+[client]
+toolbarMode = "minimal"
+
+[server]
+headless = true

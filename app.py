@@ -14,6 +14,7 @@ import v5_extensions  # installs Version 5 structured-data helpers
 import v6_extensions  # installs Version 6 audit, validation and product setup helpers
 import v7_extensions  # installs Version 7 Excel export + launcher notes
 import v9_extensions  # installs Version 9 MRP/product management + reconciliation (Excel-free)
+import v10_extensions  # installs Version 10 data-organisation + catalogue tidy helpers
 
 
 APP_DIR = Path(__file__).parent
@@ -24,10 +25,47 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 DEFAULT_WORKBOOK = DATA_DIR / "Cost Sheet 2026 new(3).xlsx"
 DEFAULT_DB = DATA_DIR / "kusha_costing_v8.3.sqlite"
 
-st.set_page_config(page_title="Kusha Costing App", page_icon="🌶️", layout="wide")
+st.set_page_config(
+    page_title="Kusha Costing App",
+    page_icon="🌶️",
+    layout="wide",
+    menu_items={"about": "Kusha Spices Costing App — costing, pricing & margin in one place."},
+)
 
-st.title("Kusha Spices Costing App")
-st.caption("Version 9.0 — fully app-driven costing & pricing; the SQLite database is the source of truth (Excel optional)")
+# ---- Light, robust styling (warm "spice" theme). Kept minimal so it does not
+# depend on fragile internal Streamlit class names. ----
+st.markdown(
+    """
+    <style>
+      .kusha-hero {
+        background: linear-gradient(135deg, #C0392B 0%, #E67E22 100%);
+        color: #FFFDF8; padding: 18px 22px; border-radius: 14px; margin-bottom: 6px;
+        box-shadow: 0 2px 10px rgba(192,57,43,0.18);
+      }
+      .kusha-hero h1 { margin: 0; font-size: 1.7rem; font-weight: 800; color: #FFFDF8; }
+      .kusha-hero p  { margin: 4px 0 0 0; font-size: 0.95rem; opacity: 0.95; }
+      /* Roomier, pill-style tabs that wrap instead of cramming */
+      .stTabs [data-baseweb="tab-list"] { gap: 6px; flex-wrap: wrap; }
+      .stTabs [data-baseweb="tab"] { border-radius: 8px 8px 0 0; padding: 6px 12px; }
+      div[data-testid="stMetric"] {
+        background: #FBEFE2; border: 1px solid #F0DEC8; border-radius: 12px;
+        padding: 10px 14px;
+      }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+st.markdown(
+    """
+    <div class="kusha-hero">
+      <h1>🌶️ Kusha Spices — Costing &amp; Pricing</h1>
+      <p>Know the true cost, set the right price, and see your margin on every product — all in one place.</p>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+st.caption("Version 9.2 · Your saved data (SQLite) is the source of truth — Excel is optional. New here? Open the **📘 Start Here** tab.")
 
 
 def ensure_database(db_path: Path, workbook_path: Path) -> None:
@@ -407,18 +445,60 @@ def reports_tab():
 
 
 def database_check_tab():
-    st.subheader("Database Check")
-    st.markdown(
-        """
-This page checks the SQLite database that was imported from Excel. It does not edit Excel or the database.
-"""
+    st.subheader("🔎 Data & Checks")
+    st.caption(
+        "A friendly overview of your data, a one-click catalogue tidy, and a check that the "
+        "app's costs match your original spreadsheet."
     )
-    check = engine.database_check()
-    st.write("Import metadata")
-    st.json(check.get("meta", {}))
 
-    counts = pd.DataFrame([{"Table": k, "Rows": v} for k, v in check.get("counts", {}).items()])
-    st.dataframe(counts, hide_index=True, use_container_width=True)
+    st.markdown("### 📊 Data overview")
+    try:
+        st.dataframe(
+            pd.DataFrame(engine.data_overview()),
+            hide_index=True,
+            use_container_width=True,
+            column_config={"Records": st.column_config.NumberColumn("Records", format="%d")},
+        )
+    except Exception as exc:
+        st.warning(f"Could not build data overview: {exc}")
+
+    st.markdown("### 🧹 Tidy the item catalogue")
+    st.caption(
+        "Your catalogue was first seeded from Excel and still contains leftover spreadsheet rows "
+        "(section headers, calculation cells) that aren't real products. This hides them and files "
+        "known ingredients under ‘Raw Material’. It is reversible and recorded in the audit log."
+    )
+    try:
+        preview = engine.catalog_cleanup_preview()
+        if preview["deactivated_count"] or preview["recategorized_count"]:
+            st.info(
+                f"Found **{preview['deactivated_count']}** non-product rows to hide and "
+                f"**{preview['recategorized_count']}** ingredients to re-file under Raw Material."
+            )
+            if preview["deactivated"]:
+                shown = ", ".join(preview["deactivated"][:12])
+                if preview["deactivated_count"] > 12:
+                    shown += " …"
+                st.caption("Will hide: " + shown)
+            if st.button("Tidy catalogue now", type="primary"):
+                res = engine.tidy_item_catalog(apply=True)
+                st.success(
+                    f"Done — hid {res['deactivated_count']} non-product rows and re-filed "
+                    f"{res['recategorized_count']} ingredients. See Admin → Audit Log for details."
+                )
+                st.rerun()
+        else:
+            st.success("Your catalogue is already tidy — no spreadsheet clutter found.")
+    except Exception as exc:
+        st.warning(f"Could not run catalogue tidy: {exc}")
+
+    st.divider()
+    check = engine.database_check()
+    with st.expander("Technical details — import metadata & table row counts"):
+        st.write("Import metadata")
+        st.json(check.get("meta", {}))
+        counts = pd.DataFrame([{"Table": k, "Rows": v} for k, v in check.get("counts", {}).items()])
+        st.dataframe(counts, hide_index=True, use_container_width=True)
 
     st.markdown("### Cost reconciliation — app formula vs imported workbook")
     st.caption(
@@ -564,10 +644,20 @@ def master_data_center_tab():
     with tabs[1]:
         st.markdown("### Raw/product rates with category and item-level GST")
         st.caption("Wholesale is treated as ex-GST. Retail can be maintained as with-GST for D2C. GST is shown separately and is item-level.")
-        cats = ["All"] + engine.item_categories()
-        cat = st.selectbox("Category filter", cats, key="v5_rate_category")
+        fcol1, fcol2 = st.columns([1, 1])
+        cats = ["All"] + [c for c in engine.item_categories() if c != v10_extensions.SYSTEM_CATEGORY]
+        cat = fcol1.selectbox("Category filter", cats, key="v5_rate_category")
+        hide_internal = fcol2.checkbox(
+            "Hide spreadsheet / inactive rows",
+            value=True,
+            key="v5_rate_hide_internal",
+            help="Hides leftover import rows and anything marked inactive, so you only see real products. "
+                 "Use 🔎 Data & Checks → Tidy catalogue to clean these up permanently.",
+        )
         search = st.text_input("Search material/product", key="v5_rate_search", placeholder="Example: Cloves, Black Pepper, Chaat Masala")
-        rows = engine.list_master_rate_rows_v5(search=search, category=cat, limit=500)
+        rows = engine.list_master_rate_rows_v5(search=search, category=cat, limit=1000)
+        if hide_internal:
+            rows = [r for r in rows if r.get("active", True) and r.get("category") != v10_extensions.SYSTEM_CATEGORY]
         if rows:
             df = pd.DataFrame(rows)
             edited = st.data_editor(
@@ -577,7 +667,7 @@ def master_data_center_tab():
                 disabled=["item_norm", "row_no", "name", "source_or_type"],
                 column_config={
                     "item_norm": None,
-                    "row_no": "DB Row",
+                    "row_no": None,
                     "name": "Name",
                     "category": st.column_config.SelectboxColumn("Category", options=engine.item_categories()+["Other / Review"]),
                     "source_or_type": "Source / Type",
@@ -617,6 +707,7 @@ def master_data_center_tab():
                 disabled=["material_norm", "source_row_no"],
                 column_config={
                     "material_norm": None,
+                    "source_row_no": None,
                     "material_name": "Material Name",
                     "vendor": st.column_config.SelectboxColumn("Vendor", options=["Maruthi Plastics", "Swiss Pac", "", "Other"]),
                     "category": st.column_config.SelectboxColumn("Category", options=["Packaging Material", "Shipping Packing Material", "Sticker / Label", "Other"]),
@@ -726,9 +817,9 @@ def master_data_center_tab():
             engine.update_shipping_zones(zedit.to_dict("records"))
             st.success("Shipping zone model saved.")
             st.rerun()
-        if st.button("Apply weighted model to size-wise new shipping cells", type="primary"):
+        if st.button("Apply weighted model to size-wise new shipping cost", type="primary"):
             vals = engine.apply_weighted_shipping_to_cells()
-            st.success("Updated new shipping cells: " + ", ".join([f"{k}={v:.2f}" for k,v in vals.items()]))
+            st.success(f"Updated {len(vals)} size-wise new-shipping values from the weighted model.")
             st.rerun()
 
     with tabs[5]:
@@ -758,7 +849,14 @@ def master_data_center_tab():
             except Exception:
                 current_float = 0.0
             with cols[idx % 2]:
-                edited_settings[cell_ref] = st.number_input(label + f" ({cell_ref})", value=current_float, step=0.01, format="%.4f", key=f"v5_setting_{cell_ref}")
+                edited_settings[cell_ref] = st.number_input(
+                    label,
+                    value=current_float,
+                    step=0.01,
+                    format="%.4f",
+                    key=f"v5_setting_{cell_ref}",
+                    help=f"Advanced: stored in master data cell {cell_ref}.",
+                )
         if st.button("Save storage/shipping/basic settings", type="primary"):
             for cell_ref, value in edited_settings.items():
                 engine.update_cell_value("Master Data", cell_ref, value)
@@ -873,7 +971,7 @@ def transport_and_gst_tab():
         use_container_width=True,
         disabled=["transport_total", "landed_cost_per_g"],
         column_config={
-            "id": "ID",
+            "id": None,
             "material_name": st.column_config.TextColumn("Material"),
             "vendor_name": st.column_config.TextColumn("Vendor/Farmer"),
             "transport_method": st.column_config.SelectboxColumn("Transport method", options=["VRL", "Direct"]),
@@ -1152,7 +1250,121 @@ For production deployment, ask your developer to choose one path:
 """
         )
 
-calculator, reports, master_data, bom, transport, admin, validation, export_install, checks = st.tabs(["Calculator", "Reports", "Master Data Center", "BOM / Recipe Builder", "Transport + GST", "Admin Controls", "Validation Center", "Export / Install", "Database Check"])
+def guide_tab():
+    st.subheader("📘 Start Here — your guide to the app")
+    st.markdown(
+        "Welcome! This app turns your raw-material, recipe, packaging and shipping "
+        "data into a **true cost** for every product and size, then helps you set a "
+        "**selling price (MRP)** and instantly see your **profit and margin**. "
+        "Everything you change is saved automatically — no spreadsheet needed."
+    )
+
+    # A quick portfolio health snapshot so the first screen is useful, not just text.
+    try:
+        snap = engine.sku_report_from_new_cost(cost_mode=engine.cost_mode_options()[0])
+        if snap:
+            sdf = pd.DataFrame(snap)
+            c = st.columns(4)
+            c[0].metric("Product variations", f"{len(sdf)}")
+            c[1].metric("Loss-making", int((sdf["Status"] == "Loss").sum()))
+            c[2].metric("Low margin", int((sdf["Status"] == "Low Margin").sum()))
+            c[3].metric("Avg margin", fmt_pct(sdf["Margin %"].dropna().mean()))
+    except Exception:
+        pass
+
+    st.divider()
+    st.markdown("### 🧭 I want to…")
+    quick = pd.DataFrame([
+        {"I want to…": "See the cost & margin of one product", "Go to": "🧮 Calculator"},
+        {"I want to…": "Review every product's margin / find loss-makers", "Go to": "📊 Reports"},
+        {"I want to…": "Change a selling price (MRP)", "Go to": "🗂️ Master Data › MRP & Selling Price"},
+        {"I want to…": "Update a raw-material rate or GST", "Go to": "🗂️ Master Data › Items & Rates"},
+        {"I want to…": "Edit packaging or which pack a size uses", "Go to": "🗂️ Master Data › Packaging List / Mapping"},
+        {"I want to…": "Change courier / shipping costs", "Go to": "🗂️ Master Data › Shipping Logic"},
+        {"I want to…": "Build or edit a masala / blend recipe", "Go to": "🧪 Recipes"},
+        {"I want to…": "Enter vendor & transport costs with GST", "Go to": "🚚 Transport & GST"},
+        {"I want to…": "Add, edit, resize or remove a product", "Go to": "🛠️ Admin"},
+        {"I want to…": "Find what still needs setting up", "Go to": "✅ Validation"},
+        {"I want to…": "Download an Excel / database backup", "Go to": "📦 Export"},
+        {"I want to…": "Tidy the data & compare to the old sheet", "Go to": "🔎 Data & Checks"},
+    ])
+    st.dataframe(quick, hide_index=True, use_container_width=True)
+
+    st.markdown("### 🗂️ What each section does")
+    sections = [
+        ("🧮 Calculator", "Pick a product, size, vendor and type to see a full cost build-up (raw, "
+         "packaging, labour, storage, shipping, misc) plus MRP, profit, margin and a clear "
+         "Good / Low Margin / Loss status."),
+        ("📊 Reports", "Your whole portfolio in one table — filter by status or size, spot loss-making "
+         "variations at a glance, and download a CSV."),
+        ("🗂️ Master Data", "The heart of the app, with sub-tabs for selling prices, item rates & GST, "
+         "packaging lists & mapping, shipping logic, and storage / labour / sticker settings."),
+        ("🧪 Recipes", "Standardised masala / blend recipes per 1 kg. A recipe stays reference-only until "
+         "you tick ‘use in costing’, so your numbers never change by surprise."),
+        ("🚚 Transport & GST", "Raw-material source costing — material cost, supplier packing, "
+         "farmer→transporter, VRL state→Mumbai and local legs (or a single Direct cost) — with GST "
+         "and a landed cost per gram."),
+        ("🛠️ Admin", "Create a product, edit its attributes, add / remove sizes, discontinue it, view the "
+         "change history (audit log), and export the database."),
+        ("✅ Validation", "A checklist of anything incomplete — missing prices, unmapped packaging, recipes "
+         "not totalling 1 kg, blank transport rows — sorted by severity."),
+        ("📦 Export", "Download a clean Excel report or the SQLite database to back up or share."),
+        ("🔎 Data & Checks", "A plain-language overview of all your data, the one-click catalogue tidy tool, "
+         "and a reconciliation that compares app costs to the original spreadsheet."),
+    ]
+    for title, body in sections:
+        with st.expander(title):
+            st.write(body)
+
+    st.markdown("### 📖 Glossary — plain meanings")
+    glossary = pd.DataFrame([
+        {"Term": "MRP / Selling Price", "Means": "The price you sell a product-size for. You set it; the app shows the margin."},
+        {"Term": "Landed cost", "Means": "What 1 gram of a raw material truly costs you after transport and GST."},
+        {"Term": "Cost mode", "Means": "Which cost to use — Full / D2C (includes courier) or Wholesale (excludes courier)."},
+        {"Term": "Wholesale vs Retail (D2C)", "Means": "Wholesale = ex-GST bulk selling; Retail / D2C = direct-to-customer, GST-inclusive."},
+        {"Term": "Miscellaneous %", "Means": "A small overhead buffer added on top of direct costs (per product)."},
+        {"Term": "Overhead % (recipe)", "Means": "Energy / processing / misc added to a recipe's ingredient cost."},
+        {"Term": "SKU / variation", "Means": "One product at one size (e.g. Turmeric 100 g) — what gets priced."},
+        {"Term": "Margin %", "Means": "Profit ÷ selling price. Flagged for you as Good, Low Margin or Loss."},
+    ])
+    st.dataframe(glossary, hide_index=True, use_container_width=True)
+
+    st.markdown("### ✅ First-time checklist")
+    st.markdown(
+        "1. **Items & Rates** — confirm raw-material rates and GST (use **Tidy catalogue** in 🔎 Data & Checks to hide spreadsheet clutter).\n"
+        "2. **Transport & GST** — enter real vendor / transport costs for your key raw materials.\n"
+        "3. **Packaging List / Mapping** — make sure each product-size points to the right packaging.\n"
+        "4. **MRP & Selling Price** — set selling prices and watch the live margin.\n"
+        "5. **Reports / Validation** — review loss-makers and fix anything flagged."
+    )
+
+    with st.expander("❓ Frequently asked questions"):
+        st.markdown(
+            "**Do I still need the Excel file?** No — your saved data is the source of truth. "
+            "Excel is only for first-time seeding or as an export / backup.\n\n"
+            "**Will my edits be saved if I close the app?** Yes, everything is stored in the local "
+            "database. Use 📦 Export (or the sidebar **Backup**) to keep copies.\n\n"
+            "**I changed a rate but the Calculator looks the same.** Re-open the Calculator tab; it "
+            "recalculates live from saved data.\n\n"
+            "**Why are some items labelled ‘System / Not a Product’?** Those are leftover spreadsheet "
+            "rows the **Tidy catalogue** tool hides so your real products are easy to find."
+        )
+
+
+guide, calculator, reports, master_data, bom, transport, admin, validation, export_install, checks = st.tabs([
+    "📘 Start Here",
+    "🧮 Calculator",
+    "📊 Reports",
+    "🗂️ Master Data",
+    "🧪 Recipes",
+    "🚚 Transport & GST",
+    "🛠️ Admin",
+    "✅ Validation",
+    "📦 Export",
+    "🔎 Data & Checks",
+])
+with guide:
+    guide_tab()
 with calculator:
     calculator_tab()
 with reports:
@@ -1175,7 +1387,7 @@ with checks:
 st.divider()
 st.markdown(
     """
-**Version 9.0 notes — Excel-free workflow**
+**Version 9.2 notes — Excel-free workflow**
 - The local SQLite database is the single source of truth. Excel is now optional: use it only to seed a fresh database or as a backup/export format.
 - **MRP & selling prices** are fully editable in Master Data Center → *MRP & Selling Price*, shown next to the live recalculated cost so you can price without a spreadsheet.
 - **Products** can be created, edited (source, vendor, shipping, miscellaneous %, GST, category), resized (add/remove sizes) and discontinued from Admin Controls → *Manage Products*.

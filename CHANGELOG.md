@@ -1,5 +1,35 @@
 # Changelog
 
+## Version 9.2 — Friendlier UI, guided help, tidier data & Windows app
+
+Goal: make the app approachable for anyone, organise the data, and ship a native
+Windows build alongside macOS.
+
+### Added
+- **📘 Start Here guide tab** — a built-in walkthrough: an "I want to… → go here"
+  map, a plain-English description of every section, a glossary, a first-time
+  checklist and an FAQ. New users can find anything without training.
+- **🔎 Data & Checks** — a plain-language **Data Overview** (Products, Prices,
+  Recipes, Raw materials, Packaging…) replacing the raw table-count dump, plus a
+  one-click **Tidy catalogue** tool.
+- **Catalogue tidy** (`v10_extensions.py`): safely hides ~21 leftover spreadsheet
+  scaffolding rows (`Index`, `RAW MATERIALS COST`, `Labour_Cost_Working`…) and
+  re-files known ingredients out of *Other / Review* into *Raw Material*. Fully
+  reversible and audit-logged; never touches the costing logic.
+- **Windows app** — `build-windows-app.yml` produces a self-contained
+  `KushaCostingApp.exe` (PyInstaller + pywebview/pythonnet), gated by the same
+  on-machine `--self-test`, and publishes `Kusha-Costing-App-windows.zip` to the
+  release next to the macOS builds.
+
+### Changed
+- **UI overhaul**: warm "spice" theme, a branded header, and icon-labelled tabs
+  in a logical order (Start Here · Calculator · Reports · Master Data · Recipes ·
+  Transport & GST · Admin · Validation · Export · Data & Checks).
+- **Cleaner data presentation**: internal join columns (`item_norm`, `row_no`,
+  `col_no`, `source_row_no`, `id`) are hidden from every grid; the Items & Rates
+  list hides spreadsheet/inactive rows by default; Excel cell codes (`AB32`,
+  `V127`) moved out of labels into help text.
+
 ## Version 9.0 — Excel-free workflow
 
 Goal: every task that previously required editing the Excel workbook can now be

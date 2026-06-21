@@ -33,6 +33,23 @@ if sys.platform == "darwin":
         "CoreFoundation", "Security",
     ]
 
+# Native window backend on Windows: pywebview + pythonnet (WinForms / WebView2).
+if sys.platform.startswith("win"):
+    for pkg in ("webview", "pythonnet", "clr_loader"):
+        try:
+            p_datas, p_binaries, p_hidden = collect_all(pkg)
+            datas += p_datas
+            binaries += p_binaries
+            hiddenimports += p_hidden
+        except Exception:
+            pass
+    hiddenimports += [
+        "clr",
+        "webview.platforms.winforms",
+        "webview.platforms.edgechromium",
+        "webview.platforms.mshtml",
+    ]
+
 # The application source must be present so Streamlit can run app.py, plus the
 # seed database/workbook.
 app_modules = [
@@ -42,6 +59,7 @@ app_modules = [
     "v6_extensions.py",
     "v7_extensions.py",
     "v9_extensions.py",
+    "v10_extensions.py",
 ]
 datas += [(m, ".") for m in app_modules]
 datas += [("data", "data")]
@@ -52,6 +70,7 @@ hiddenimports += [
     "v6_extensions",
     "v7_extensions",
     "v9_extensions",
+    "v10_extensions",
     "pandas",
     "openpyxl",
     "pyarrow",
@@ -115,12 +134,12 @@ if sys.platform == "darwin":
         name="Kusha Costing App.app",
         icon=None,
         bundle_identifier="com.kushaspices.costingapp",
-        version="9.1.0",
+        version="9.2.0",
         info_plist={
             "CFBundleName": "Kusha Costing App",
             "CFBundleDisplayName": "Kusha Costing App",
-            "CFBundleShortVersionString": "9.1",
-            "CFBundleVersion": "9.1.0",
+            "CFBundleShortVersionString": "9.2",
+            "CFBundleVersion": "9.2.0",
             "NSHighResolutionCapable": True,
             "LSMinimumSystemVersion": "11.0",
         },

@@ -100,12 +100,17 @@ jobs:
           tag_name: ${{ github.event.inputs.release_tag || github.ref_name }}
           name: Kusha Costing App ${{ github.event.inputs.release_tag || github.ref_name }}
           body: |
-            Self-contained macOS app — nothing to install.
+            Self-contained Kusha Costing App — nothing to install.
 
-            Download the build for your Mac, unzip, drag **Kusha Costing App.app**
+            **macOS:** download the build for your Mac, unzip, drag **Kusha Costing App.app**
             to Applications, then right-click → Open the first time.
 
-            - **Apple Silicon** (M1/M2/M3/M4): `Kusha-Costing-App-apple-silicon.zip`
-            - **Intel**: `Kusha-Costing-App-intel.zip`
+            **Windows:** download `Kusha-Costing-App-windows.zip`, unzip it, open the
+            `KushaCostingApp` folder and run **KushaCostingApp.exe**. If SmartScreen
+            warns, click *More info → Run anyway* (unsigned internal app).
+
+            - **Windows**: `Kusha-Costing-App-windows.zip`
+            - **macOS Apple Silicon** (M1/M2/M3/M4): `Kusha-Costing-App-apple-silicon.zip`
+            - **macOS Intel**: `Kusha-Costing-App-intel.zip`
           files: Kusha-Costing-App-${{ matrix.arch }}.zip
           fail_on_unmatched_files: true
