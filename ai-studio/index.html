@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AURORA — AI Creative Studio</title>
+<meta name="description" content="An AI-native creative editor. Direct it by voice or text; it edits, generates and animates for you." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='24' fill='%237c5cff'/></svg>" />
+</head>
+<body>
+<div class="aurora-bg"></div>
+
+<div class="app">
+
+  <!-- ───────────────────────────── TOP BAR ───────────────────────────── -->
+  <header class="topbar glass">
+    <div class="brand">
+      <div class="orb"></div>
+      <div>
+        <div class="name"><span>AURORA</span></div>
+        <div class="tag">AI CREATIVE STUDIO</div>
+      </div>
+    </div>
+    <input class="project" id="projectName" value="Untitled Project" spellcheck="false" />
+
+    <div class="status" id="status" data-state="ready">
+      <span class="dot"></span><span id="statusText">Director ready</span>
+    </div>
+
+    <div class="top-actions">
+      <button class="btn ghost icon" id="btnUndo" title="Undo (Ctrl+Z)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 1 0 3-7.7L3 8"/></svg>
+      </button>
+      <button class="btn ghost" id="btnPlay">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        <span>Play</span>
+      </button>
+      <button class="btn primary" id="btnExport">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+        <span>Export</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ───────────────────────────── TOOL RAIL ─────────────────────────── -->
+  <nav class="rail glass" id="rail">
+    <div class="tool active" data-tool="select" title="Select"><span class="tip">Select & move <span class="kbd">V</span></span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 3 7.5 18 2-7.5 7.5-2L3 3z"/></svg>
+    </div>
+    <div class="tool" data-tool="image" title="Generate image"><span class="tip">Generate picture</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.6"/><path d="m21 15-5-5L5 21"/></svg>
+    </div>
+    <div class="tool" data-tool="text" title="Add text"><span class="tip">Add text / title</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V5h16v2"/><path d="M9 19h6"/><path d="M12 5v14"/></svg>
+    </div>
+    <div class="tool" data-tool="shape" title="Add shape"><span class="tip">Add shape</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="5"/><rect x="11" y="11" width="9" height="9" rx="2"/></svg>
+    </div>
+    <div class="tool" data-tool="effects" title="Effects"><span class="tip">Effects & grade</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v4"/><path d="M3 5h4"/><path d="M6 17v4"/><path d="M4 19h4"/><path d="M13 3l2.5 6.5L22 12l-6.5 2.5L13 21l-2.5-6.5L4 12l6.5-2.5L13 3z"/></svg>
+    </div>
+    <div class="tool" data-tool="animate" title="Animate"><span class="tip">Animate</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+    </div>
+    <div class="tool" data-tool="video" title="Generate reel"><span class="tip">Generate video reel</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="14" height="14" rx="2"/><path d="m16 9 6-3v12l-6-3"/></svg>
+    </div>
+
+    <div class="spacer"></div>
+
+    <div class="tool" data-tool="clear" title="Clear canvas"><span class="tip">Clear canvas</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
+    </div>
+  </nav>
+
+  <!-- ───────────────────────────── STAGE ─────────────────────────────── -->
+  <main class="stage-wrap glass" id="stageWrap">
+    <div class="stage-shadow" id="stageShadow"></div>
+    <div class="stage" id="stage">
+      <div class="grade tint"  id="gradeTint"></div>
+      <div class="grade bloom" id="gradeBloom"></div>
+      <div class="grade vignette" id="gradeVignette"></div>
+    </div>
+
+    <div class="stage-hint" id="stageHint" style="display:none">
+      <div>
+        <div style="font-size:15px;color:var(--text-dim);margin-bottom:6px">Empty canvas</div>
+        <div style="font-size:12px">Tell the Director what to create — e.g. <i>“generate a golden-hour mountain scene”</i></div>
+      </div>
+    </div>
+
+    <!-- floating inspector -->
+    <aside class="inspector glass" id="inspector">
+      <h4 id="inspName">Layer</h4>
+      <div class="sub" id="inspType">—</div>
+      <div class="field"><label>Opacity <b id="vOpacity">100%</b></label><input type="range" id="rOpacity" min="0" max="100" value="100"></div>
+      <div class="field"><label>Brightness <b id="vBright">100%</b></label><input type="range" id="rBright" min="0" max="200" value="100"></div>
+      <div class="field"><label>Contrast <b id="vContrast">100%</b></label><input type="range" id="rContrast" min="0" max="200" value="100"></div>
+      <div class="field"><label>Saturation <b id="vSat">100%</b></label><input type="range" id="rSat" min="0" max="300" value="100"></div>
+      <div class="field"><label>Blur <b id="vBlur">0px</b></label><input type="range" id="rBlur" min="0" max="30" value="0"></div>
+      <div class="row">
+        <button class="btn ghost" id="btnDuplicate" style="flex:1">Duplicate</button>
+        <button class="btn ghost" id="btnDelete" style="flex:1;color:var(--red)">Delete</button>
+      </div>
+    </aside>
+  </main>
+
+  <!-- ───────────────────────────── TIMELINE ──────────────────────────── -->
+  <section class="timeline glass">
+    <div class="tl-head">
+      <div class="transport">
+        <button class="btn" id="tlPlay"><svg viewBox="0 0 24 24" fill="currentColor" width="14"><path d="M8 5v14l11-7z"/></svg></button>
+        <button class="btn" id="tlStop"><svg viewBox="0 0 24 24" fill="currentColor" width="14"><rect x="6" y="6" width="12" height="12" rx="2"/></svg></button>
+      </div>
+      <span class="ttl">TIMELINE</span>
+      <span class="time" id="tlTime">0.0s / 6.0s</span>
+    </div>
+    <div class="tracks">
+      <div class="ruler" id="ruler"></div>
+      <div class="track-rows" id="trackRows"></div>
+      <div class="playhead" id="playhead" style="left:0"></div>
+    </div>
+  </section>
+
+  <!-- ───────────────────────────── AI DIRECTOR ───────────────────────── -->
+  <aside class="ai glass">
+    <div class="ai-head">
+      <div class="ai-avatar" id="aiAvatar"></div>
+      <div class="who">Director<small id="aiSub">your creative collaborator</small></div>
+      <button class="btn ghost voicetoggle" id="btnVoiceMode" title="When on, the Director speaks replies aloud">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a9 9 0 0 1 0 14"/></svg>
+        <span id="voiceModeLabel">Voice</span>
+      </button>
+    </div>
+
+    <div class="chat" id="chat"></div>
+
+    <div class="chips" id="chips"></div>
+
+    <div class="composer">
+      <div class="box">
+        <textarea id="composerInput" rows="1" placeholder="Direct the studio…  (try the chips above, or hold the mic)"></textarea>
+        <button class="mic" id="btnMic" title="Voice command (voice-to-voice)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v4"/></svg>
+        </button>
+        <button class="send" id="btnSend" title="Send (Enter)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4 20-7z"/></svg>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+</div>
+
+<div class="toasts" id="toasts"></div>
+
+<!-- Modules (classic scripts so the app also runs from file://). Order matters. -->
+<script src="js/engine.js"></script>
+<script src="js/imagegen.js"></script>
+<script src="js/voice.js"></script>
+<script src="js/director.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
