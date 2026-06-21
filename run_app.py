@@ -219,13 +219,13 @@ def run_window_mode() -> int:
     env["KUSHA_MODE"] = "server"
     env["KUSHA_PORT"] = str(port)
     env["KUSHA_DATA_DIR"] = str(data_dir)
-    # Apply the warm "spice" theme regardless of the working directory (the
+    # Apply the Kusha Spices brand theme regardless of the working directory (the
     # bundled .streamlit/config.toml is only picked up when run from the repo).
     env.setdefault("STREAMLIT_THEME_BASE", "light")
-    env.setdefault("STREAMLIT_THEME_PRIMARY_COLOR", "#C0392B")
-    env.setdefault("STREAMLIT_THEME_BACKGROUND_COLOR", "#FFFDF8")
-    env.setdefault("STREAMLIT_THEME_SECONDARY_BACKGROUND_COLOR", "#FBEFE2")
-    env.setdefault("STREAMLIT_THEME_TEXT_COLOR", "#2B2118")
+    env.setdefault("STREAMLIT_THEME_PRIMARY_COLOR", "#009B77")          # Kusha Aquamarine
+    env.setdefault("STREAMLIT_THEME_BACKGROUND_COLOR", "#FFFFFF")        # Kusha White
+    env.setdefault("STREAMLIT_THEME_SECONDARY_BACKGROUND_COLOR", "#F0F5F3")
+    env.setdefault("STREAMLIT_THEME_TEXT_COLOR", "#3D4A41")             # Kusha Royal Green
     cmd = [sys.executable] if getattr(sys, "frozen", False) else [sys.executable, os.path.abspath(__file__)]
 
     log(f"Starting server on port {port}")

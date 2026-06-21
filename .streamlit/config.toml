@@ -4,10 +4,10 @@
 # run_app.py (so the theme applies regardless of the working directory).
 [theme]
 base = "light"
-primaryColor = "#C0392B"            # spice red — buttons, highlights
-backgroundColor = "#FFFDF8"         # warm off-white page
-secondaryBackgroundColor = "#FBEFE2" # cards, sidebar, tables
-textColor = "#2B2118"               # warm near-black
+primaryColor = "#009B77"            # Kusha Aquamarine — buttons, highlights
+backgroundColor = "#FFFFFF"         # Kusha White page
+secondaryBackgroundColor = "#F0F5F3" # light aquamarine tint — cards, sidebar, tables
+textColor = "#3D4A41"               # Kusha Royal Green — text
 font = "sans serif"
 
 [client]

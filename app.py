@@ -32,24 +32,40 @@ st.set_page_config(
     menu_items={"about": "Kusha Spices Costing App — costing, pricing & margin in one place."},
 )
 
-# ---- Light, robust styling (warm "spice" theme). Kept minimal so it does not
-# depend on fragile internal Streamlit class names. ----
+# ---- Kusha Spices brand styling (from the corporate identity guide):
+# Aquamarine #009B77, Royal Green #3D4A41, Gold #DAA520, Cool Grey #E6E6E6.
+# Headings use the brand display font Antonio (loaded if online, with clean
+# system-font fallbacks so the app still looks right offline). ----
 st.markdown(
     """
     <style>
-      .kusha-hero {
-        background: linear-gradient(135deg, #C0392B 0%, #E67E22 100%);
-        color: #FFFDF8; padding: 18px 22px; border-radius: 14px; margin-bottom: 6px;
-        box-shadow: 0 2px 10px rgba(192,57,43,0.18);
+      @import url('https://fonts.googleapis.com/css2?family=Antonio:wght@300;400;600;700&display=swap');
+      :root {
+        --kusha-aqua:#009B77; --kusha-green:#3D4A41; --kusha-gold:#DAA520; --kusha-grey:#E6E6E6;
       }
-      .kusha-hero h1 { margin: 0; font-size: 1.7rem; font-weight: 800; color: #FFFDF8; }
-      .kusha-hero p  { margin: 4px 0 0 0; font-size: 0.95rem; opacity: 0.95; }
+      h1, h2, h3 {
+        font-family: 'Antonio','SF Pro Display','Helvetica Neue',Arial,sans-serif;
+        letter-spacing: .3px; color: var(--kusha-green);
+      }
+      .kusha-hero {
+        background: linear-gradient(135deg, #3D4A41 0%, #009B77 100%);
+        color: #FFFFFF; padding: 18px 24px; border-radius: 14px; margin-bottom: 6px;
+        border-bottom: 3px solid var(--kusha-gold);
+        box-shadow: 0 3px 12px rgba(61,74,65,0.22);
+      }
+      .kusha-hero h1 {
+        margin: 0; font-size: 1.95rem; font-weight: 700; color: #FFFFFF;
+        font-family: 'Antonio','SF Pro Display','Helvetica Neue',Arial,sans-serif;
+      }
+      .kusha-hero p { margin: 5px 0 0 0; font-size: 0.96rem; color: #F4EAD0; opacity: .96; }
       /* Roomier, pill-style tabs that wrap instead of cramming */
       .stTabs [data-baseweb="tab-list"] { gap: 6px; flex-wrap: wrap; }
       .stTabs [data-baseweb="tab"] { border-radius: 8px 8px 0 0; padding: 6px 12px; }
+      .stTabs [aria-selected="true"] { color: #009B77 !important; }
+      /* Metric cards in brand tint with a gold accent edge */
       div[data-testid="stMetric"] {
-        background: #FBEFE2; border: 1px solid #F0DEC8; border-radius: 12px;
-        padding: 10px 14px;
+        background: #F0F5F3; border: 1px solid #D6E5DF; border-left: 4px solid var(--kusha-gold);
+        border-radius: 12px; padding: 10px 14px;
       }
     </style>
     """,
@@ -59,7 +75,7 @@ st.markdown(
 st.markdown(
     """
     <div class="kusha-hero">
-      <h1>🌶️ Kusha Spices — Costing &amp; Pricing</h1>
+      <h1>🌶️ KUSHA SPICES — Costing &amp; Pricing</h1>
       <p>Know the true cost, set the right price, and see your margin on every product — all in one place.</p>
     </div>
     """,
