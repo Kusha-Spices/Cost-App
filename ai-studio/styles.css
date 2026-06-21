@@ -91,6 +91,41 @@ body {
   100% { transform: translate(-4vw, -3vh) scale(1.05); }
 }
 
+/* Signature aurora curtain (northern-lights light streaks) ------------------ */
+.curtain {
+  position: absolute; inset: -15% 0 32% 0; pointer-events: none;
+  filter: blur(58px); opacity: .5; mix-blend-mode: screen;
+}
+.curtain span {
+  position: absolute; top: 0; bottom: 0; left: var(--l); width: 16%;
+  color: var(--c);
+  background: linear-gradient(180deg, transparent 0%, var(--c) 45%, transparent 92%);
+  border-radius: 50%;
+  animation: aurora-sway var(--d) ease-in-out var(--delay) infinite alternate;
+}
+@keyframes aurora-sway {
+  0%   { transform: translate(-12%, -8%) scaleY(.9)  skewX(-7deg); opacity: .30; }
+  50%  { transform: translate(9%, 5%)   scaleY(1.18) skewX(6deg);  opacity: .70; }
+  100% { transform: translate(-4%, -2%) scaleY(1.0)  skewX(-3deg); opacity: .42; }
+}
+@media (prefers-reduced-motion: reduce) { .curtain span { animation: none; } }
+
+/* Native desktop title bar (Electron) --------------------------------------- */
+.topbar { -webkit-app-region: drag; }
+.topbar .btn, .topbar .project, .topbar .status, .topbar .winctl, .topbar .wc { -webkit-app-region: no-drag; }
+body.is-mac .brand { padding-left: 70px; }   /* clear macOS traffic lights */
+
+.winctl { display: none; align-items: center; gap: 2px; margin-left: 4px; }
+body.has-winctl .winctl { display: flex; }
+.wc {
+  width: 42px; height: 34px; display: grid; place-items: center;
+  border: none; background: transparent; color: var(--text-dim);
+  border-radius: 9px; cursor: pointer; transition: background .15s, color .15s;
+}
+.wc svg { width: 12px; height: 12px; }
+.wc:hover { background: var(--panel-2); color: var(--text); }
+.wc.close:hover { background: #e5484d; color: #fff; }
+
 /* App shell ----------------------------------------------------------------- */
 .app {
   position: relative;

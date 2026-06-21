@@ -69,22 +69,29 @@
   function applyEffects(t, layer) {
     const g = E.doc.grade, f = layer ? layer.filters : null;
     const did = [];
-    const bump = (k, d, lo, hi) => { if (f) { f[k] = clamp(round(f[k] + d), lo, hi); } };
+    const bump = (k, d, lo, hi) => { if (f) f[k] = clamp(round(f[k] + d), lo, hi); };
 
-    if (has(t, "brighter", "brighten", "lighter")) { bump("brightness", 0.18, 0.2, 2.4); did.push(`brightness → ${pct(f.brightness)}`); }
-    if (has(t, "darker", "darken")) { bump("brightness", -0.18, 0.2, 2.4); did.push(`brightness → ${pct(f.brightness)}`); }
-    if (has(t, "more contrast", "punchy", "punch", "crisp")) { bump("contrast", 0.2, 0.2, 2.4); did.push(`contrast → ${pct(f.contrast)}`); }
-    if (has(t, "less contrast", "flatter", "soft contrast")) { bump("contrast", -0.18, 0.2, 2.4); did.push(`contrast → ${pct(f.contrast)}`); }
-    if (has(t, "more saturated", "vivid", "vibrant", "saturate", "pop", "richer", "colorful", "colourful")) { bump("saturate", 0.3, 0, 3); did.push(`saturation → ${pct(f.saturate)}`); }
-    if (has(t, "desaturate", "muted", "less saturated", "wash", "faded", "pastel")) { bump("saturate", -0.3, 0, 3); did.push(`saturation → ${pct(f.saturate)}`); }
+    // filter effects — require an active layer (null-safe: skipped if none)
+    if (f) {
+      if (has(t, "brighter", "brighten", "lighter")) { bump("brightness", 0.18, 0.2, 2.4); did.push(`brightness → ${pct(f.brightness)}`); }
+      if (has(t, "darker", "darken")) { bump("brightness", -0.18, 0.2, 2.4); did.push(`brightness → ${pct(f.brightness)}`); }
+      if (has(t, "more contrast", "punchy", "punch", "crisp")) { bump("contrast", 0.2, 0.2, 2.4); did.push(`contrast → ${pct(f.contrast)}`); }
+      if (has(t, "less contrast", "flatter", "soft contrast")) { bump("contrast", -0.18, 0.2, 2.4); did.push(`contrast → ${pct(f.contrast)}`); }
+      if (has(t, "more saturated", "vivid", "vibrant", "saturate", "pop", "richer", "colorful", "colourful")) { bump("saturate", 0.3, 0, 3); did.push(`saturation → ${pct(f.saturate)}`); }
+      if (has(t, "desaturate", "muted", "less saturated", "wash", "faded", "pastel")) { bump("saturate", -0.3, 0, 3); did.push(`saturation → ${pct(f.saturate)}`); }
+      if (has(t, "blur", "soften", "dreamy focus")) { bump("blur", 6, 0, 30); did.push(`blur → ${f.blur}px`); }
+      if (has(t, "sharpen", "sharper", "crisper")) { bump("blur", -6, 0, 30); bump("contrast", 0.08, 0.2, 2.4); did.push("sharpened"); }
+      if (has(t, "black and white", "grayscale", "greyscale", "monochrome", "b&w")) { f.grayscale = 1; f.saturate = 0; did.push("black & white"); }
+      if (has(t, "sepia", "vintage", "retro", "old film")) { f.sepia = 0.5; f.contrast = round(f.contrast * 1.05); did.push("vintage sepia"); }
+    }
+
+    // grade effects — apply with or without a layer
     if (has(t, "warmer", "warm", "golden", "cozy", "sunset tone")) { g.warmth = clamp(round(g.warmth + 0.35), -1, 1); did.push("warmer tone"); }
     if (has(t, "cooler", "cold", "icy", "blue tone")) { g.warmth = clamp(round(g.warmth - 0.35), -1, 1); did.push("cooler tone"); }
-    if (has(t, "blur", "soften", "dreamy focus")) { bump("blur", 6, 0, 30); did.push(`blur → ${f.blur}px`); }
-    if (has(t, "sharpen", "sharper", "crisper")) { bump("blur", -6, 0, 30); bump("contrast", 0.08, 0.2, 2.4); did.push("sharpened"); }
     if (has(t, "vignette")) { g.vignette = clamp(round(g.vignette + 0.5), 0, 1); did.push("vignette added"); }
-    if (has(t, "black and white", "grayscale", "greyscale", "monochrome", "b&w")) { if (f) { f.grayscale = 1; f.saturate = 0; } did.push("black & white"); }
-    if (has(t, "sepia", "vintage", "retro", "old film")) { if (f) { f.sepia = 0.5; f.contrast = round(f.contrast * 1.05); } g.warmth = clamp(g.warmth + 0.25, -1, 1); g.vignette = Math.max(g.vignette, 0.4); did.push("vintage sepia"); }
     if (has(t, "glow", "bloom", "halo", "ethereal")) { g.bloom = clamp(round(g.bloom + 0.5), 0, 1); did.push("dreamy bloom"); }
+    if (has(t, "sepia", "vintage", "retro", "old film")) { g.warmth = clamp(round(g.warmth + 0.25), -1, 1); g.vignette = Math.max(g.vignette, 0.4); if (!f) did.push("vintage sepia"); }
+
     if (has(t, "remove effect", "reset look", "reset grade", "clean look", "no filter", "remove filter", "neutral")) {
       if (f) Object.assign(f, { brightness: 1, contrast: 1, saturate: 1, blur: 0, hue: 0, sepia: 0, grayscale: 0 });
       Object.assign(g, { vignette: 0, warmth: 0, bloom: 0 }); did.push("look reset to neutral");
@@ -262,9 +269,15 @@
   }
 
   function doAnimate(raw, t) {
-    const layer = resolveTarget(t);
-    if (!layer) return { reply: "Nothing to animate yet — generate or add a layer first.", did: [], tip: "Try “generate a sunrise” then “add a ken-burns zoom”." };
     const a = animFor(t);
+    let layer = resolveTarget(t);
+    // camera-style moves (zoom/pan) belong on the image unless a text target was named
+    const camera = ["zoomIn", "zoomOut", "panR", "panL", "panU"].includes(a.type);
+    if (camera && !has(t, "title", "text", "caption", "logo", "heading", "headline", "subtitle")) {
+      const imgs = E.doc.layers.filter((l) => l.type === "image");
+      if (imgs.length) layer = imgs[imgs.length - 1];
+    }
+    if (!layer) return { reply: "Nothing to animate yet — generate or add a layer first.", did: [], tip: "Try “generate a sunrise” then “add a ken-burns zoom”." };
     layer.anim = Object.assign({ delay: 0.1, loop: false }, a);
     E.render();
     return {

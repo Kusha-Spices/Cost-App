@@ -309,7 +309,7 @@
     E.init(stage);                       // bind engine to the stage, create the doc
     setStatus("thinking", "Setting the scene…"); aiAvatar.classList.add("busy");
     E.fitStage();
-    const { src } = await IG.generate("a moody mountain range at golden hour, cinematic", { width: E.doc.width, height: E.doc.height });
+    const { src } = await IG.generate("an abstract aurora of violet, cyan and magenta light", { width: E.doc.width, height: E.doc.height });
     const bg = Aurora.makeLayer("image", { name: "Background", x: 0, y: 0, w: E.doc.width, h: E.doc.height, src, anim: { type: "zoomIn", dur: 6, delay: 0, loop: false } });
     const title = Aurora.makeLayer("text", {
       name: "Title", x: E.doc.width * 0.1, y: E.doc.height * 0.34, w: E.doc.width * 0.8, h: 170,
@@ -322,7 +322,7 @@
       anim: { type: "fadeIn", dur: 1.6, delay: 1.0, loop: false },
     });
     E.doc.layers.push(bg, title, sub);
-    E.doc.grade.warmth = 0.22; E.doc.grade.vignette = 0.55;
+    E.doc.grade.warmth = 0.05; E.doc.grade.vignette = 0.3; E.doc.grade.bloom = 0.18;
     E.doc.duration = 6;
     E.render(); E._changed();
     aiAvatar.classList.remove("busy"); setStatus("ready", "Director ready");

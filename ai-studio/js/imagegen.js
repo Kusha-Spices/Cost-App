@@ -22,7 +22,7 @@
 
   // keyword → palette + scene cues
   const STYLES = [
-    { k: ["sunset", "golden", "dusk", "warm", "sunrise", "dawn"], name: "golden-hour", top: "#2a1a3a", mid: "#ff7a59", bot: "#ffd27a", sun: "#fff0b8", scene: "mountains" },
+    { k: ["sunset", "golden", "dusk", "warm", "sunrise", "dawn"], name: "golden-hour", top: "#4a2d63", mid: "#ff8a5b", bot: "#ffd27a", sun: "#fff0b8", scene: "mountains" },
     { k: ["ocean", "sea", "beach", "water", "wave", "coast"], name: "coastal blue", top: "#06283d", mid: "#1f6f8b", bot: "#9bd7d5", sun: "#fdf6c4", scene: "water" },
     { k: ["forest", "jungle", "tree", "green", "nature", "woods"], name: "verdant", top: "#06231a", mid: "#1b6e4a", bot: "#9fe0a0", sun: "#eafff0", scene: "mountains" },
     { k: ["night", "neon", "cyber", "city", "synthwave", "vapor"], name: "neon night", top: "#0b0220", mid: "#5b1e8a", bot: "#16d3ff", sun: "#ff4fd8", scene: "city" },
@@ -81,8 +81,8 @@
 
     if (style.scene === "mountains" || style.scene === "desert") {
       for (let layer = 0; layer < 4; layer++) {
-        const baseY = h * (0.5 + layer * 0.12);
-        const shade = lerpHex("#000000", style.bot, 0.12 + layer * 0.16);
+        const baseY = h * (0.6 + layer * 0.1);
+        const shade = lerpHex("#000000", style.bot, 0.2 + layer * 0.17);
         ctx.fillStyle = shade;
         ctx.beginPath(); ctx.moveTo(0, h);
         let x = 0;
@@ -122,18 +122,27 @@
       ctx.globalCompositeOperation = "source-over";
     }
 
-    // film grain
-    const grain = ctx.createImageData(w, h);
+    // film grain — rendered on an offscreen canvas and composited additively.
+    // (putImageData OVERWRITES pixels and ignores blending, so it must NOT be
+    //  drawn straight onto the scene or it wipes everything to near-black.)
+    const gcv = document.createElement("canvas"); gcv.width = w; gcv.height = h;
+    const gctx = gcv.getContext("2d");
+    const grain = gctx.createImageData(w, h);
     for (let i = 0; i < grain.data.length; i += 4) {
       const v = (rnd() * 255) | 0;
       grain.data[i] = grain.data[i + 1] = grain.data[i + 2] = v;
-      grain.data[i + 3] = 8;
+      grain.data[i + 3] = 255;
     }
-    ctx.putImageData(grain, 0, 0);
+    gctx.putImageData(grain, 0, 0);
+    ctx.save();
+    ctx.globalAlpha = 0.06;
+    ctx.globalCompositeOperation = "overlay";
+    ctx.drawImage(gcv, 0, 0);
+    ctx.restore();
 
     // gentle vignette
-    const vg = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.3, w / 2, h / 2, Math.max(w, h) * 0.72);
-    vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(0,0,0,0.45)");
+    const vg = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.35, w / 2, h / 2, Math.max(w, h) * 0.72);
+    vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(0,0,0,0.3)");
     ctx.fillStyle = vg; ctx.fillRect(0, 0, w, h);
 
     return { dataURL: cv.toDataURL("image/jpeg", 0.88), styleName: style.name };

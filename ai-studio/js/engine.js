@@ -232,7 +232,12 @@
       }
     },
 
-    setGrade(patch) { Object.assign(this.doc.grade, patch); this._applyGrade(); this._changed(); },
+    setGrade(patch) {
+      const g = this.doc.grade;
+      const set = (k, lo, hi) => { if (k in patch && Number.isFinite(patch[k])) g[k] = util.clamp(patch[k], lo, hi); };
+      set("vignette", 0, 1); set("warmth", -1, 1); set("bloom", 0, 1);
+      this._applyGrade(); this._changed();
+    },
 
     /* -- animation / timeline -- */
     _animFrame(l, t) {
