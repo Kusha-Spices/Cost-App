@@ -36,6 +36,7 @@ class Config:
     auto_approve: bool = False    # skip confirmation for risky actions (use with care)
     enable_web: bool = True       # expose Anthropic's server-side web_search / web_fetch
     voice_name: str = "Samantha"  # macOS `say` voice
+    wake_words: tuple = ("jarvis", "hey jarvis", "okay jarvis")
 
     @property
     def api_key(self) -> str | None:

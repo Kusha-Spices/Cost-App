@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Build Jarvis.app (a background menu-bar app) with py2app. Run this ON YOUR MAC.
+set -e
+cd "$(dirname "$0")"
+
+[ -d .venv ] || python3 -m venv .venv
+source .venv/bin/activate
+pip install -U pip
+pip install -U -r requirements.txt py2app
+
+rm -rf build dist
+python setup.py py2app
+
+echo
+echo "✅ Built dist/Jarvis.app"
+echo "   • Drag it to /Applications (or run: open dist/Jarvis.app)"
+echo "   • First launch: grant Microphone, Screen Recording, and Accessibility"
+echo "     to *Jarvis* in System Settings → Privacy & Security."
+echo "   • Put your key in a .env next to the app, or export ANTHROPIC_API_KEY."

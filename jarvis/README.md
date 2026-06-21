@@ -25,6 +25,14 @@ and you own every line — extend it however you like.
 | **Screen** | `take_screenshot` (Jarvis *sees* the screen), `mouse_click`, `type_text`, `press_keys`, `scroll`, `get_screen_size` |
 | **Web** | `web_search`, `web_fetch` (Anthropic server-side), `download_file` |
 | **System** | `notify`, `get_clipboard`, `set_clipboard`, `set_volume`, `system_info` |
+| **Apps & extensions** | `send_email`, `create_note`, `create_reminder`, `calendar_add_event`, `music_control`, `keystroke_to`, `menu_click`, `run_shortcut`, `list_shortcuts` |
+
+> **Any app, any execution — really.** `run_shell` runs *any* command and
+> `run_applescript` scripts *any* Mac app, so Jarvis isn't limited to the tools
+> above. `menu_click` / `keystroke_to` drive arbitrary app UIs, and
+> `run_shortcut` lets you expose **anything you build in Apple Shortcuts** as a
+> Jarvis capability. To add a first-class tool of your own, drop a function +
+> `Tool(...)` entry into a `tools/*.py` module — it's auto-registered.
 
 Example things to ask:
 - "Organize my Downloads folder by file type."
@@ -70,16 +78,27 @@ Voice *output* (Jarvis talking) needs nothing extra — it uses the built-in `sa
 
 ## Run
 
+Three ways to use it:
+
 ```bash
+# 1) Terminal (text or voice)
 python main.py            # type to it; replies are printed and spoken
 python main.py --voice    # press Enter, speak; replies are spoken
-./run.sh --voice          # or let the launcher set up the venv for you
+python main.py --wake     # always listening — just say "Jarvis, ..."
+
+# 2) Menu-bar app (no terminal window)
+python menubar.py         # 🤖 appears in your menu bar
+#   …or double-click Jarvis.command in Finder
+
+# 3) A real .app  (see "Build a Mac app" below)
+./build_app.sh            # → dist/Jarvis.app
 ```
 
 Useful flags:
 | Flag | Effect |
 |------|--------|
 | `--voice` | Push-to-talk voice input |
+| `--wake` | Always-listening wake word ("Jarvis …") |
 | `--no-speak` | Don't speak replies (text only) |
 | `--auto` | Skip confirmations for risky actions (⚠ see Safety) |
 | `--model claude-sonnet-4-6` | Use a faster/cheaper model |
@@ -134,6 +153,37 @@ Adding a tool is easy: write a function in a `tools/*.py` module and append a
 It's automatically registered and offered to Claude on the next run.
 
 ---
+
+## Wake word
+
+`--wake` (CLI) and the **Listen for wake word** menu item start an always-on
+listener. Say any of "**Jarvis**", "hey Jarvis", "okay Jarvis" (configurable in
+`config.py`) followed by your command — e.g. *"Jarvis, what's in my Downloads
+folder?"*. Say just "Jarvis" and it replies "Yes?" and waits for the command.
+
+The default backend uses Google speech recognition (needs internet, no key). For
+lower CPU and a dedicated on-device "Jarvis" keyword, install
+[Porcupine](https://picovoice.ai/) (`pip install pvporcupine`) and set a free
+`PV_ACCESS_KEY` — then swap it into `wake.py` (the loop is isolated there).
+
+## Menu-bar app & building a Mac app
+
+**Run it as a menu-bar app right now** (no build step):
+```bash
+python menubar.py          # or double-click Jarvis.command
+```
+The 🤖 menu lets you type a request, toggle the wake word, toggle auto-approve,
+toggle spoken replies, open the log, and quit. Confirmations pop up as native
+dialogs, so it works with no terminal attached.
+
+**Build a standalone `Jarvis.app`** (background app, no Dock icon):
+```bash
+./build_app.sh             # → dist/Jarvis.app
+```
+Then drag `dist/Jarvis.app` to `/Applications`. On first launch, grant
+**Microphone**, **Screen Recording**, and **Accessibility** to *Jarvis* in
+System Settings → Privacy & Security, and keep a `.env` (with your key) next to
+the app or export `ANTHROPIC_API_KEY`. Packaging runs on your Mac via `py2app`.
 
 ## Troubleshooting
 

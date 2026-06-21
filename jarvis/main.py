@@ -24,9 +24,35 @@ def build_confirm(voice):
     return confirm
 
 
+def run_wake(cfg, agent, voice) -> int:
+    """Always-listening mode: say 'Jarvis ...' to issue a command."""
+    import threading
+
+    from wake import WakeListener
+
+    stop = threading.Event()
+    speak = voice.speak if voice else None
+
+    def on_cmd(text: str) -> None:
+        print(f"\nYou: {text}")
+        agent.run_turn(text)
+
+    print("Listening for the wake word. Say 'Jarvis …' to give a command. Ctrl-C to quit.")
+    if speak:
+        speak("Jarvis online.")
+    try:
+        WakeListener(cfg.wake_words, on_command=on_cmd, speak=speak).run(stop)
+    except KeyboardInterrupt:
+        stop.set()
+        print("\nBye.")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Jarvis — your Mac assistant.")
     ap.add_argument("--voice", action="store_true", help="Push-to-talk voice input.")
+    ap.add_argument("--wake", action="store_true",
+                    help="Always-listening wake word ('Jarvis ...').")
     ap.add_argument("--no-speak", action="store_true", help="Disable spoken replies.")
     ap.add_argument("--no-web", action="store_true", help="Disable web search/fetch.")
     ap.add_argument("--auto", action="store_true",
@@ -68,6 +94,9 @@ def main() -> int:
                            build_confirm(voice if cfg.voice else None), LOG_PATH)
     agent = Agent(cfg, safety,
                   on_text=lambda t: print(f"\nJarvis: {t}\n"), voice=speaking_voice)
+
+    if args.wake:
+        return run_wake(cfg, agent, voice if cfg.speak else None)
 
     print("Jarvis is online. "
           + ("Press Enter to talk, or just type. " if cfg.voice else "")
