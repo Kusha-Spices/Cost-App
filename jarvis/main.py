@@ -132,7 +132,7 @@ def main() -> int:
     voice = None
     if want_listen or cfg.speak:
         from voice import Voice
-        voice = Voice(voice_name=cfg.voice_name, listen=want_listen)
+        voice = Voice(voice_name=cfg.voice_name, listen=want_listen, tts_cmd=cfg.tts_cmd)
         if cfg.voice and not voice.can_listen:
             print("Voice input unavailable — falling back to text. (Replies still spoken.)")
             cfg.voice = False

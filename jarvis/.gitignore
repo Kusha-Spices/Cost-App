@@ -5,6 +5,7 @@ screenshots/
 jarvis.log
 memory.json
 assets/icon.icns
+voices/*.wav
 build/
 dist/
 .venv/

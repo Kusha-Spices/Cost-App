@@ -11,6 +11,7 @@ import threading
 import urllib.error
 import urllib.request
 
+import automemory
 import tools as toolkit
 from config import Config, MAX_AGENT_STEPS, MEMORY_PATH, system_prompt
 from memory import Memory
@@ -55,6 +56,22 @@ class OllamaAgent:
                                      headers={"Content-Type": "application/json"})
         with urllib.request.urlopen(req, timeout=600) as r:
             return json.loads(r.read())
+
+    def quick_complete(self, prompt: str) -> str:
+        """One short, tool-less completion — used for auto-memory extraction."""
+        url = self.cfg.ollama_host.rstrip("/") + "/api/chat"
+        body = json.dumps({"model": self.cfg.ollama_model, "stream": False,
+                           "messages": [
+                               {"role": "system",
+                                "content": "You extract durable facts to remember about the user. Be terse."},
+                               {"role": "user", "content": prompt}]}).encode()
+        try:
+            req = urllib.request.Request(url, data=body,
+                                         headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=300) as r:
+                return json.loads(r.read()).get("message", {}).get("content", "")
+        except Exception:
+            return ""
 
     def _run_tool(self, name: str, args: dict) -> str:
         tool = toolkit.REGISTRY.get(name)
@@ -128,6 +145,10 @@ class OllamaAgent:
         else:
             final = "Stopped: that took too many steps. Let's try a smaller request."
 
+        if final and self.cfg.companion and getattr(self.cfg, "auto_memory", True) \
+                and not self.cancel.is_set():
+            threading.Thread(target=automemory.learn, args=(self, user_text, final),
+                             daemon=True).start()
         if self.voice and final:
             self.voice.speak(final)
         return final

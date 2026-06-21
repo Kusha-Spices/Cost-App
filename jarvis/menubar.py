@@ -70,7 +70,7 @@ class JarvisApp(rumps.App):
             return False
         from brain import build_agent
         from voice import Voice
-        self.voice = Voice(voice_name=self.cfg.voice_name, listen=False)
+        self.voice = Voice(voice_name=self.cfg.voice_name, listen=False, tts_cmd=self.cfg.tts_cmd)
         self.safety = SafetyManager(self.cfg.auto_approve, gui_confirm, LOG_PATH)
         self.agent = build_agent(self.cfg, self.safety, on_text=self._notify,
                                  voice=self.voice if self.cfg.speak else None)

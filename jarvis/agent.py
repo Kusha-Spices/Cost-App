@@ -6,6 +6,7 @@ import threading
 
 import anthropic
 
+import automemory
 import tools as toolkit
 from config import Config, MAX_AGENT_STEPS, MEMORY_PATH, system_prompt
 from memory import Memory
@@ -36,6 +37,14 @@ class Agent:
         self.memory = Memory(MEMORY_PATH)
         memory_tools.bind(self.memory)
         self.system = system_prompt(cfg, self.memory.as_text())
+
+    def quick_complete(self, prompt: str) -> str:
+        """One short, tool-less completion — used for auto-memory extraction."""
+        r = self.client.messages.create(
+            model=self.cfg.model, max_tokens=200,
+            system="You extract durable facts to remember about the user. Be terse.",
+            messages=[{"role": "user", "content": prompt}])
+        return "".join(b.text for b in r.content if getattr(b, "type", None) == "text")
 
     def _create(self):
         kwargs = dict(
@@ -123,6 +132,10 @@ class Agent:
         else:
             final = "Stopped: that took too many steps. Let's break it into smaller pieces."
 
+        if final and self.cfg.companion and getattr(self.cfg, "auto_memory", True) \
+                and not self.cancel.is_set():
+            threading.Thread(target=automemory.learn, args=(self, user_text, final),
+                             daemon=True).start()
         if self.voice and final:
             self.voice.speak(final)
         return final

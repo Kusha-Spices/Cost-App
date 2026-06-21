@@ -13,8 +13,9 @@ def _clean_for_speech(text: str) -> str:
 
 
 class Voice:
-    def __init__(self, voice_name: str = "Samantha", listen: bool = True):
+    def __init__(self, voice_name: str = "Samantha", listen: bool = True, tts_cmd: str = ""):
         self.voice_name = voice_name
+        self.tts_cmd = tts_cmd          # optional external TTS (e.g. a cloned voice)
         self._recognizer = None
         self._mic = None
         if listen:
@@ -37,6 +38,13 @@ class Voice:
         text = _clean_for_speech(text)
         if not text:
             return
+        # Custom voice engine (e.g. a cloned voice) — receives text on stdin.
+        if self.tts_cmd:
+            try:
+                subprocess.run(self.tts_cmd, shell=True, input=text, text=True)
+                return
+            except Exception:
+                pass  # fall back to the built-in voice
         try:
             r = subprocess.run(["say", "-v", self.voice_name, text])
             if r.returncode != 0:

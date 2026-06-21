@@ -40,9 +40,11 @@ class Config:
     speak: bool = True            # spoken output via macOS `say`
     auto_approve: bool = False    # skip confirmation for risky actions (use with care)
     enable_web: bool = True       # expose Anthropic's server-side web_search / web_fetch
-    voice_name: str = "Samantha"  # macOS `say` voice
+    voice_name: str = field(default_factory=lambda: os.environ.get("JARVIS_VOICE", "Samantha"))
+    tts_cmd: str = field(default_factory=lambda: os.environ.get("JARVIS_TTS_CMD", ""))
     wake_words: tuple = ("jarvis", "hey jarvis", "okay jarvis")
     companion: bool = False       # warm, conversational personality + proactive learning
+    auto_memory: bool = True      # auto-save durable facts from conversations (companion mode)
 
     @property
     def api_key(self) -> str | None:

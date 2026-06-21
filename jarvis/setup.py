@@ -27,7 +27,7 @@ OPTIONS = {
     },
     "packages": ["anthropic", "rumps", "certifi", "speech_recognition"],
     "includes": ["tools", "tools.extensions", "tools.memory", "agent", "ollama_agent",
-                 "brain", "voice", "wake", "config", "safety", "memory"],
+                 "brain", "voice", "wake", "config", "safety", "memory", "automemory"],
 }
 
 if os.path.exists("assets/icon.icns"):

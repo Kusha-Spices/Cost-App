@@ -260,9 +260,34 @@ the local Ollama brain allows, on capable hardware.)
 
 Jarvis remembers things across sessions. Tell it *"remember that my projects live
 in ~/code"* and it saves the note (to `memory.json`); next launch it already
-knows. It uses three tools — `remember`, `recall`, `forget` — and remembered
+knows. In conversation mode it also **auto-saves** — after each exchange it
+quietly distils any durable facts about you into memory (turn off by setting
+`auto_memory` off in the code, or just delete lines from `memory.json`). It uses three tools — `remember`, `recall`, `forget` — and remembered
 notes are injected into its context automatically each turn. Edit or wipe memory
 by editing/deleting `memory.json`.
+
+## Voice (how Jarvis sounds)
+
+**Pick a nicer built-in voice** — instant. See what's installed:
+```bash
+say -v "?"
+```
+Pick one and set it in `.env`:
+```
+JARVIS_VOICE=Ava (Premium)
+```
+Add premium Siri-quality voices — or your own **Apple Personal Voice** — in
+**System Settings → Accessibility → Spoken Content → System Voice → Manage Voices**.
+
+**Use your OWN recorded/cloned voice** (advanced, experimental):
+1. Record 15–30s of clear speech and save it as `voices/myvoice.wav`.
+2. Install the open-source voice cloner: `./.venv/bin/pip install TTS`
+3. In `.env`, set: `JARVIS_TTS_CMD=./.venv/bin/python speak_clone.py`
+
+Jarvis will then speak in your voice. Honest caveats: it's a big AI model, so it's
+**slower** than built-in voices and downloads a few GB on first use; quality
+depends on your sample. If anything's missing it falls back to the normal voice,
+so Jarvis always talks. For snappy everyday use, a premium `JARVIS_VOICE` is best.
 
 ## Stopping a task
 
