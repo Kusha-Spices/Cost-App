@@ -9,6 +9,10 @@ Pillow>=10.0
 # Menu-bar app (pulls in pyobjc). Not needed for the plain CLI.
 rumps>=0.4.0
 
+# Global "stop" hotkey (Cmd+Shift+.) for the menu-bar app. Optional — the
+# Stop menu item works without it.
+pynput>=1.7
+
 # Voice output works with no extra deps (macOS `say`).
 # Voice INPUT needs SpeechRecognition + PyAudio, and PyAudio needs portaudio:
 #     brew install portaudio

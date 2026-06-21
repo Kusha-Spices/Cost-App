@@ -15,8 +15,10 @@ import threading
 
 import rumps
 
-from config import Config, LOG_PATH
+from config import Config, JARVIS_DIR, LOG_PATH
 from safety import SafetyManager
+
+ICON = os.path.join(JARVIS_DIR, "assets", "icon.png")
 
 
 def gui_confirm(prompt: str) -> bool:
@@ -30,7 +32,10 @@ def gui_confirm(prompt: str) -> bool:
 
 class JarvisApp(rumps.App):
     def __init__(self):
-        super().__init__("🤖", quit_button=None)
+        if os.path.exists(ICON):
+            super().__init__("Jarvis", icon=ICON, template=False, quit_button=None)
+        else:
+            super().__init__("🤖", quit_button=None)
         self.cfg = Config(speak=True, voice=False)
         self._lock = threading.Lock()
         self._stop = threading.Event()
@@ -39,8 +44,10 @@ class JarvisApp(rumps.App):
         self.safety = None
         self.agent = None
 
+        self._hotkey = None
         self.menu = [
             "Ask Jarvis",
+            "Stop current task",
             None,
             "Listen for wake word",
             "Auto-approve risky actions",
@@ -64,7 +71,24 @@ class JarvisApp(rumps.App):
         self.safety = SafetyManager(self.cfg.auto_approve, gui_confirm, LOG_PATH)
         self.agent = Agent(self.cfg, self.safety, on_text=self._notify,
                            voice=self.voice if self.cfg.speak else None)
+        self._setup_hotkey()
         return True
+
+    def _setup_hotkey(self) -> None:
+        """Global stop hotkey: Cmd+Shift+. (optional — needs pynput)."""
+        if self._hotkey:
+            return
+        try:
+            from pynput import keyboard
+            self._hotkey = keyboard.GlobalHotKeys({"<cmd>+<shift>+.": self._stop_task})
+            self._hotkey.start()
+        except Exception:
+            self._hotkey = None  # pynput missing or no Accessibility — Stop menu still works
+
+    def _stop_task(self) -> None:
+        if self.agent:
+            self.agent.cancel.set()
+        rumps.notification("Jarvis", "", "Stopping…")
 
     def _notify(self, text: str) -> None:
         rumps.notification("Jarvis", "", text[:240])
@@ -89,6 +113,10 @@ class JarvisApp(rumps.App):
         if resp.clicked and resp.text.strip():
             threading.Thread(target=self._run, args=(resp.text.strip(),),
                              daemon=True).start()
+
+    @rumps.clicked("Stop current task")
+    def stop_task(self, _):
+        self._stop_task()
 
     @rumps.clicked("Listen for wake word")
     def toggle_listen(self, sender):

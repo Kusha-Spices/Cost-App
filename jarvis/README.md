@@ -15,6 +15,29 @@ and you own every line — extend it however you like.
 
 ---
 
+## What you need to download
+
+Almost everything is **in this folder already**. Three things can't live in a zip
+because they're system-level — here's the whole list:
+
+| # | What | How |
+|---|------|-----|
+| ✅ | **This folder** (the app + installer) | You have it |
+| 1 | **Python 3** (macOS may already have it) | Check: `python3 --version`. Missing? `xcode-select --install` |
+| 2 | **An Anthropic API key** | https://console.anthropic.com/ → API Keys |
+| 3 | *(voice input only)* **portaudio** | `brew install portaudio` |
+
+Every Python package (anthropic SDK, pyautogui, rumps, …) is installed
+**automatically** by the included `install.sh`. You don't fetch those by hand.
+
+```bash
+cd jarvis
+./install.sh                       # sets up everything, creates .env
+#  → then put your API key in .env and you're done
+```
+
+---
+
 ## What it can do (the tools)
 
 | Area | Tools |
@@ -26,6 +49,7 @@ and you own every line — extend it however you like.
 | **Web** | `web_search`, `web_fetch` (Anthropic server-side), `download_file` |
 | **System** | `notify`, `get_clipboard`, `set_clipboard`, `set_volume`, `system_info` |
 | **Apps & extensions** | `send_email`, `create_note`, `create_reminder`, `calendar_add_event`, `music_control`, `keystroke_to`, `menu_click`, `run_shortcut`, `list_shortcuts` |
+| **Memory** | `remember`, `recall`, `forget` (persists across sessions) |
 
 > **Any app, any execution — really.** `run_shell` runs *any* command and
 > `run_applescript` scripts *any* Mac app, so Jarvis isn't limited to the tools
@@ -49,11 +73,10 @@ Example things to ask:
 - macOS, Python 3.9+
 - An Anthropic API key → https://console.anthropic.com/
 
-**2. Install**
+**2. Install** — one command:
 ```bash
 cd jarvis
-python3 -m venv .venv && source .venv/bin/activate
-pip install -U -r requirements.txt
+./install.sh           # creates the venv, installs deps, makes your .env
 ```
 
 **3. Add your API key**
@@ -184,6 +207,28 @@ Then drag `dist/Jarvis.app` to `/Applications`. On first launch, grant
 **Microphone**, **Screen Recording**, and **Accessibility** to *Jarvis* in
 System Settings → Privacy & Security, and keep a `.env` (with your key) next to
 the app or export `ANTHROPIC_API_KEY`. Packaging runs on your Mac via `py2app`.
+
+### Use your own icon
+A default arc-reactor icon ships in `assets/icon.png`. To use a different image,
+just **overwrite `assets/icon.png`** with your own (square PNG works best), then
+rebuild (`./build_app.sh`) or restart the menu-bar app. The build keeps your
+image — it only generates the default if `icon.png` is missing.
+
+## Memory
+
+Jarvis remembers things across sessions. Tell it *"remember that my projects live
+in ~/code"* and it saves the note (to `memory.json`); next launch it already
+knows. It uses three tools — `remember`, `recall`, `forget` — and remembered
+notes are injected into its context automatically each turn. Edit or wipe memory
+by editing/deleting `memory.json`.
+
+## Stopping a task
+
+If Jarvis is mid-task and you want it to stop:
+- **Menu-bar app:** click **Stop current task**, or press **⌘⇧.** (Cmd+Shift+period) anywhere.
+- **Terminal:** press **Ctrl-C**.
+
+It stops cleanly at the next step rather than leaving things half-done.
 
 ## Troubleshooting
 

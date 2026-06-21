@@ -8,6 +8,13 @@ source .venv/bin/activate
 pip install -U pip
 pip install -U -r requirements.txt py2app
 
+# Build the .icns app icon from assets/icon.png (macOS `sips`).
+# Generate the default only if you haven't dropped in your own icon.png.
+[ -f assets/icon.png ] || python assets/make_icon.py
+if command -v sips >/dev/null 2>&1 && [ -f assets/icon.png ]; then
+  sips -s format icns assets/icon.png --out assets/icon.icns >/dev/null 2>&1 || true
+fi
+
 rm -rf build dist
 python setup.py py2app
 

@@ -2,12 +2,15 @@
 from __future__ import annotations
 
 import json
+import threading
 
 import anthropic
 
 import tools as toolkit
-from config import Config, MAX_AGENT_STEPS, system_prompt
+from config import Config, MAX_AGENT_STEPS, MEMORY_PATH, system_prompt
+from memory import Memory
 from safety import SafetyManager
+from tools import memory as memory_tools
 
 # Anthropic server-side tools — executed on Anthropic's side, no local handler.
 WEB_TOOLS = [
@@ -27,9 +30,12 @@ class Agent:
         self.on_text = on_text
         self.voice = voice
         self.client = anthropic.Anthropic(api_key=cfg.api_key)
-        self.system = system_prompt(cfg)
         self.messages: list[dict] = []
         self.tools = toolkit.specs() + (WEB_TOOLS if cfg.enable_web else [])
+        self.cancel = threading.Event()      # set this to stop a task mid-flight
+        self.memory = Memory(MEMORY_PATH)
+        memory_tools.bind(self.memory)
+        self.system = system_prompt(cfg, self.memory.as_text())
 
     def _create(self):
         kwargs = dict(
@@ -74,10 +80,15 @@ class Agent:
         return block
 
     def run_turn(self, user_text: str) -> str:
+        self.cancel.clear()
+        self.system = system_prompt(self.cfg, self.memory.as_text())
         self.messages.append({"role": "user", "content": user_text})
         final = ""
 
         for _ in range(MAX_AGENT_STEPS):
+            if self.cancel.is_set():
+                final = "Okay, stopped."
+                break
             resp = self._create()
 
             if resp.stop_reason == "refusal":
@@ -97,6 +108,14 @@ class Agent:
             tool_uses = [b for b in resp.content if getattr(b, "type", None) == "tool_use"]
             if not tool_uses:
                 final = text or "(I didn't produce a reply — try rephrasing.)"
+                break
+
+            if self.cancel.is_set():
+                # Keep history valid: every tool_use needs a tool_result.
+                results = [self._result(b.id, "Cancelled by the user.", is_error=True)
+                           for b in tool_uses]
+                self.messages.append({"role": "user", "content": results})
+                final = "Okay, stopped."
                 break
 
             results = [self._run_tool(b) for b in tool_uses]

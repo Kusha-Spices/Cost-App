@@ -1,11 +1,11 @@
 """Aggregate every Tool into a registry the agent can use."""
 from __future__ import annotations
 
-from tools import apps, extensions, files, screen, shell, system, web
+from tools import apps, extensions, files, memory, screen, shell, system, web
 from tools.base import Tool
 
 ALL_TOOLS: list[Tool] = []
-for _mod in (shell, files, apps, screen, web, system, extensions):
+for _mod in (shell, files, apps, screen, web, system, extensions, memory):
     ALL_TOOLS.extend(_mod.TOOLS)
 
 REGISTRY: dict[str, Tool] = {t.name: t for t in ALL_TOOLS}

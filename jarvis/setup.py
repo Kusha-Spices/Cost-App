@@ -6,6 +6,8 @@ which runs:
     python setup.py py2app
 and produces dist/Jarvis.app (a background menu-bar app — no Dock icon).
 """
+import os
+
 from setuptools import setup
 
 APP = ["menubar.py"]
@@ -24,9 +26,12 @@ OPTIONS = {
             "Jarvis controls applications to carry out your requests.",
     },
     "packages": ["anthropic", "rumps", "certifi", "speech_recognition"],
-    "includes": ["tools", "tools.extensions", "agent", "voice", "wake",
-                 "config", "safety"],
+    "includes": ["tools", "tools.extensions", "tools.memory", "agent", "voice",
+                 "wake", "config", "safety", "memory"],
 }
+
+if os.path.exists("assets/icon.icns"):
+    OPTIONS["iconfile"] = "assets/icon.icns"
 
 setup(
     app=APP,
