@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Aetherion — Endless World</title>
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- Three.js is loaded from a CDN via an import map (needs internet on first load). -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="game"></div>
+
+  <!-- ===================== HUD ===================== -->
+  <div id="hud" class="hidden">
+    <!-- Top-left status panel -->
+    <div id="panel" class="panel">
+      <div class="panel-title">AETHERION</div>
+      <div class="stat"><span class="k">Region</span><span id="biome" class="v">—</span></div>
+      <div class="stat"><span class="k">Position</span><span id="coords" class="v">0, 0</span></div>
+      <div class="stat"><span class="k">Altitude</span><span id="altitude" class="v">0 m</span></div>
+      <div class="stat"><span class="k">Time</span><span id="clock" class="v">06:00</span></div>
+      <div class="stat"><span class="k">FPS</span><span id="fps" class="v">60</span></div>
+    </div>
+
+    <!-- Bottom-left: stamina + state -->
+    <div id="stamina-wrap">
+      <div id="state-label">EXPLORING</div>
+      <div id="stamina-bar"><div id="stamina-fill"></div></div>
+    </div>
+
+    <!-- Bottom-center: party / character switch -->
+    <div id="party"></div>
+
+    <!-- Bottom-right: minimap -->
+    <div id="map-wrap">
+      <canvas id="minimap" width="180" height="180"></canvas>
+      <div id="map-coords">0, 0</div>
+    </div>
+
+    <!-- Top-right: quick controls hint -->
+    <div id="hint" class="panel">
+      <div><b>WASD</b> Move &nbsp; <b>Mouse</b> Look</div>
+      <div><b>Shift</b> Sprint &nbsp; <b>Space</b> Jump / Glide</div>
+      <div><b>1·2·3</b> Switch Hero &nbsp; <b>F</b> Fly</div>
+      <div><b>Wheel</b> Zoom &nbsp; <b>Esc</b> Pause</div>
+    </div>
+  </div>
+
+  <!-- ===================== START / PAUSE OVERLAY ===================== -->
+  <div id="overlay">
+    <div id="overlay-card">
+      <h1 class="title">AETHERION</h1>
+      <p class="subtitle">An Endless Open World</p>
+
+      <div id="loading-row">
+        <div class="spinner"></div>
+        <span id="loading-text">Generating the world…</span>
+      </div>
+
+      <div id="start-controls" class="hidden">
+        <div class="controls-grid">
+          <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>Move</span></div>
+          <div><kbd>Mouse</kbd><span>Look around</span></div>
+          <div><kbd>Shift</kbd><span>Sprint</span></div>
+          <div><kbd>Space</kbd><span>Jump · hold to Glide</span></div>
+          <div><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><span>Switch hero</span></div>
+          <div><kbd>F</kbd><span>Free-fly camera</span></div>
+        </div>
+        <button id="start-btn">▶ Explore the World</button>
+        <p class="tip">Tip: the land regenerates forever as you travel — there is no edge of the map.</p>
+      </div>
+    </div>
+    <div id="overlay-footer">Built with Three.js · Procedurally generated · No two journeys alike</div>
+  </div>
+
+  <div id="nosupport" class="hidden">
+    <div>
+      <h2>WebGL unavailable</h2>
+      <p>This game needs a browser with WebGL2 enabled. Try a recent Chrome, Edge, Firefox or Safari.</p>
+    </div>
+  </div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
