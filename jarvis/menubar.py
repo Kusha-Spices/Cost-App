@@ -36,9 +36,10 @@ class JarvisApp(rumps.App):
             super().__init__("Jarvis", icon=ICON, template=False, quit_button=None)
         else:
             super().__init__("🤖", quit_button=None)
-        self.cfg = Config(speak=True, voice=False)
+        self.cfg = Config(speak=True, voice=False, companion=True)
         self._lock = threading.Lock()
         self._stop = threading.Event()
+        self._convo_stop = threading.Event()
         self._wake_thread = None
         self.voice = None
         self.safety = None
@@ -49,6 +50,7 @@ class JarvisApp(rumps.App):
             "Ask Jarvis",
             "Stop current task",
             None,
+            "Conversation mode",
             "Listen for wake word",
             "Auto-approve risky actions",
             "Speak replies",
@@ -62,15 +64,16 @@ class JarvisApp(rumps.App):
     def _ensure_agent(self) -> bool:
         if self.agent:
             return True
-        if not self.cfg.api_key:
-            rumps.alert("Jarvis", "Set ANTHROPIC_API_KEY in a .env file first.")
+        if self.cfg.provider == "anthropic" and not self.cfg.api_key:
+            rumps.alert("Jarvis", "Set ANTHROPIC_API_KEY in a .env file, or switch to the "
+                                  "free local brain (set JARVIS_PROVIDER=ollama in .env).")
             return False
-        from agent import Agent
+        from brain import build_agent
         from voice import Voice
         self.voice = Voice(voice_name=self.cfg.voice_name, listen=False)
         self.safety = SafetyManager(self.cfg.auto_approve, gui_confirm, LOG_PATH)
-        self.agent = Agent(self.cfg, self.safety, on_text=self._notify,
-                           voice=self.voice if self.cfg.speak else None)
+        self.agent = build_agent(self.cfg, self.safety, on_text=self._notify,
+                                 voice=self.voice if self.cfg.speak else None)
         self._setup_hotkey()
         return True
 
@@ -118,6 +121,37 @@ class JarvisApp(rumps.App):
     def stop_task(self, _):
         self._stop_task()
 
+    @rumps.clicked("Conversation mode")
+    def toggle_convo(self, sender):
+        if sender.state:
+            self._convo_stop.set()
+            sender.state = False
+            return
+        if not self._ensure_agent():
+            return
+        sender.state = True
+        self._convo_stop.clear()
+        threading.Thread(target=self._convo_loop, daemon=True).start()
+
+    def _convo_loop(self):
+        from voice import Voice
+        mic = Voice(voice_name=self.cfg.voice_name, listen=True)
+        if not mic.can_listen:
+            rumps.notification("Jarvis", "", "Microphone unavailable for conversation.")
+            return
+        if self.voice:
+            self.voice.speak("I'm here. Let's chat.")
+        byes = ("goodbye", "bye", "stop talking", "that's all")
+        while not self._convo_stop.is_set():
+            text = mic.listen()
+            if not text:
+                continue
+            if text.lower().strip(" .!") in byes:
+                if self.voice:
+                    self.voice.speak("Talk soon.")
+                break
+            self._run(text)
+
     @rumps.clicked("Listen for wake word")
     def toggle_listen(self, sender):
         if sender.state:
@@ -159,6 +193,7 @@ class JarvisApp(rumps.App):
     @rumps.clicked("Quit Jarvis")
     def quit(self, _):
         self._stop.set()
+        self._convo_stop.set()
         rumps.quit_application()
 
 

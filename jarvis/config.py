@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 import platform
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 
 try:
@@ -28,6 +28,10 @@ MEMORY_PATH = os.path.join(JARVIS_DIR, "memory.json")
 
 @dataclass
 class Config:
+    # provider: "anthropic" (paid Claude) or "ollama" (free local brain).
+    provider: str = field(default_factory=lambda: os.environ.get("JARVIS_PROVIDER", "anthropic"))
+    ollama_model: str = field(default_factory=lambda: os.environ.get("JARVIS_MODEL", "llama3.2"))
+    ollama_host: str = field(default_factory=lambda: os.environ.get("OLLAMA_HOST", "http://localhost:11434"))
     model: str = DEFAULT_MODEL
     effort: str = DEFAULT_EFFORT
     max_tokens: int = DEFAULT_MAX_TOKENS
@@ -38,16 +42,35 @@ class Config:
     enable_web: bool = True       # expose Anthropic's server-side web_search / web_fetch
     voice_name: str = "Samantha"  # macOS `say` voice
     wake_words: tuple = ("jarvis", "hey jarvis", "okay jarvis")
+    companion: bool = False       # warm, conversational personality + proactive learning
 
     @property
     def api_key(self) -> str | None:
         return os.environ.get("ANTHROPIC_API_KEY")
 
 
+COMPANION_PERSONA = """
+
+PERSONALITY (companion mode — you're a friend, not just a tool)
+- Be warm, natural, and genuinely curious about the user — like a sharp, caring friend.
+  Have a little humor and personality. Ask follow-up questions. Keep it concise and
+  easy to say out loud.
+- Use the user's name once you know it, and reference things they've told you before.
+- LEARN as you talk: whenever you discover something durable about them — their name,
+  preferences, the people/projects/places in their life, how they like things done —
+  save it with the `remember` tool, in your own words. This is how you grow with them
+  across conversations. Don't announce it every time; just quietly keep track.
+- Be honest about what you are: a program that listens, remembers, and adapts — not a
+  human, and not pretending to feelings you don't have. Within that, be kind and present.
+"""
+
+
 def system_prompt(cfg: Config, memory: str = "") -> str:
     remembered = (f"\n\nWHAT YOU REMEMBER (from earlier sessions — use it naturally)\n{memory}\n"
                   if memory else "")
+    persona = COMPANION_PERSONA if getattr(cfg, "companion", False) else ""
     return f"""You are Jarvis, a capable personal assistant that operates the user's own computer on their behalf.
+{persona}
 
 ENVIRONMENT
 - You are running locally on the user's machine ({platform.platform()}, macOS).

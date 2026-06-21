@@ -33,8 +33,32 @@ Every Python package (anthropic SDK, pyautogui, rumps, …) is installed
 ```bash
 cd jarvis
 ./install.sh                       # sets up everything, creates .env
-#  → then put your API key in .env and you're done
+#  → then choose a brain (below) and you're done
 ```
+
+## Pick a brain (free or paid)
+
+Jarvis works with either, and you switch with one line in `.env`:
+
+**A) Free local brain — runs on your Mac, no key, no cost, private.**
+1. Install **Ollama** → https://ollama.com (download, open it).
+2. Download a model: `ollama pull llama3.2`  (~2 GB; use `llama3.1` or `qwen2.5` if you have 16 GB+ RAM).
+3. In `.env`, add:
+   ```
+   JARVIS_PROVIDER=ollama
+   JARVIS_MODEL=llama3.2
+   ```
+That's it — no API key needed. Best for: free forever, privacy, offline, and the
+option to fine-tune later. Trade-off: less reliable than Claude on hard multi-step
+tasks, and it can't see screenshots (no vision on small local models).
+
+**B) Paid Claude brain — most capable ("real Jarvis").**
+Put your key in `.env` (`ANTHROPIC_API_KEY=sk-ant-…`). Pennies per task, no subscription.
+
+> You can keep both configured and flip anytime: comment/uncomment `JARVIS_PROVIDER`,
+> or run `python main.py --provider ollama` / `--provider anthropic`.
+> Either way, Jarvis **remembers** what you tell it across sessions (see Memory) —
+> that's how it gets more useful to you over time.
 
 ---
 
@@ -122,6 +146,7 @@ Useful flags:
 |------|--------|
 | `--voice` | Push-to-talk voice input |
 | `--wake` | Always-listening wake word ("Jarvis …") |
+| `--chat` | Companion conversation mode (warm, voice-to-voice, learns as you talk) |
 | `--no-speak` | Don't speak replies (text only) |
 | `--auto` | Skip confirmations for risky actions (⚠ see Safety) |
 | `--model claude-sonnet-4-6` | Use a faster/cheaper model |
@@ -213,6 +238,23 @@ A default arc-reactor icon ships in `assets/icon.png`. To use a different image,
 just **overwrite `assets/icon.png`** with your own (square PNG works best), then
 rebuild (`./build_app.sh`) or restart the menu-bar app. The build keeps your
 image — it only generates the default if `icon.png` is missing.
+
+## Conversation mode (a companion that learns)
+
+```bash
+python main.py --chat        # warm back-and-forth; voice-to-voice if a mic is set up
+```
+Or, in the menu-bar app, toggle **Conversation mode**. Jarvis takes on a warmer,
+friendlier personality, has real back-and-forth conversations, and **learns about
+you as you talk** — when it picks up something durable (your name, preferences,
+people and projects in your life), it quietly saves it to memory and carries it
+into future chats. Say "goodbye" to end.
+
+**What "learns" honestly means:** it grows a memory of *you* and adapts to it over
+time — it does **not** retrain its own neural network, and it won't become
+conscious or literally human. Within that, it gets more personal and useful the
+more you talk to it. (True model fine-tuning is a separate, advanced step that only
+the local Ollama brain allows, on capable hardware.)
 
 ## Memory
 

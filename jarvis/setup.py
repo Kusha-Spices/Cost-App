@@ -26,8 +26,8 @@ OPTIONS = {
             "Jarvis controls applications to carry out your requests.",
     },
     "packages": ["anthropic", "rumps", "certifi", "speech_recognition"],
-    "includes": ["tools", "tools.extensions", "tools.memory", "agent", "voice",
-                 "wake", "config", "safety", "memory"],
+    "includes": ["tools", "tools.extensions", "tools.memory", "agent", "ollama_agent",
+                 "brain", "voice", "wake", "config", "safety", "memory"],
 }
 
 if os.path.exists("assets/icon.icns"):
