@@ -1,0 +1,13 @@
+# Core
+anthropic>=0.40        # the brain (use the latest: pip install -U anthropic)
+python-dotenv>=1.0     # loads ANTHROPIC_API_KEY from .env
+
+# Screen control + screenshots
+pyautogui>=0.9.54
+Pillow>=10.0
+
+# Voice output works with no extra deps (macOS `say`).
+# Voice INPUT needs SpeechRecognition + PyAudio, and PyAudio needs portaudio:
+#     brew install portaudio
+#     pip install pyaudio
+SpeechRecognition>=3.10
