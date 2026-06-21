@@ -48,9 +48,14 @@ jobs:
       - name: Verify the native-window backend is bundled
         run: |
           # Import the native window backend (pywebview + pythonnet/clr) from
-          # inside the built app. Fails the build if it was not packaged right.
-          & "dist\KushaCostingApp\KushaCostingApp.exe" --self-test
-          if ($LASTEXITCODE -ne 0) { throw "native-backend self-test failed ($LASTEXITCODE)" }
+          # inside the built app. The app is a GUI-subsystem exe, so PowerShell's
+          # '&' does NOT wait for it and would not capture the exit code — use
+          # Start-Process -Wait -PassThru to actually wait and read .ExitCode.
+          $p = Start-Process -FilePath "dist\KushaCostingApp\KushaCostingApp.exe" -ArgumentList "--self-test" -Wait -PassThru
+          Write-Host "----- launch.log -----"
+          Get-Content "$env:APPDATA\Kusha Costing App\launch.log" -ErrorAction SilentlyContinue
+          if ($p.ExitCode -ne 0) { throw "native-backend self-test failed (exit $($p.ExitCode))" }
+          Write-Host "native backend import: OK"
 
       - name: Smoke-test the built app (windowed launch, like a double-click)
         run: |
