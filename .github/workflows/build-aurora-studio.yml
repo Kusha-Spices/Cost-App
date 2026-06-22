@@ -1,0 +1,100 @@
+name: Build Aurora Studio
+
+# Builds the AURORA desktop app (Electron) into downloadable installers for
+# macOS, Windows and Linux. Gated on the stress test passing.
+#
+# How to get the app:
+#   • This runs automatically when ai-studio/** changes on the dev branch.
+#     Open GitHub → "Actions" → this run → scroll to "Artifacts" and download
+#     the build for your OS.
+#   • To publish a GitHub Release instead, run it from the Actions tab with a
+#     "release_tag" (once the workflow is on the default branch).
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Publish a Release under this tag (e.g. v0.1). Leave blank to only upload artifacts."
+        required: false
+        default: ""
+  push:
+    branches: [ "claude/elegant-volta-kfvi1t" ]
+    paths:
+      - "ai-studio/**"
+      - ".github/workflows/build-aurora-studio.yml"
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    working-directory: ai-studio
+
+jobs:
+  build:
+    name: Build (${{ matrix.label }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-14        # Apple Silicon (M1/M2/M3/M4)
+            platform: mac
+            label: macos-apple-silicon
+          - runner: macos-13        # Intel
+            platform: mac
+            label: macos-intel
+          - runner: windows-latest
+            platform: win
+            label: windows
+          - runner: ubuntu-latest
+            platform: linux
+            label: linux
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Stress + correctness test
+        run: npm test
+
+      - name: Build installer (${{ matrix.platform }})
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"   # unsigned dev build; no signing hang
+        run: npx --no-install electron-builder --${{ matrix.platform }} --publish never
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AuroraStudio-${{ matrix.label }}
+          path: |
+            ai-studio/dist/*.dmg
+            ai-studio/dist/*.zip
+            ai-studio/dist/*.exe
+            ai-studio/dist/*.AppImage
+          if-no-files-found: warn
+
+      - name: Publish to a GitHub Release (optional)
+        if: ${{ github.event.inputs.release_tag != '' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.release_tag }}
+          name: Aurora Studio ${{ github.event.inputs.release_tag }}
+          body: |
+            **Aurora Studio** — AI creative studio (demo mode, unsigned dev build).
+
+            - **macOS** (`.dmg`): open it, drag *Aurora Studio* to Applications, then
+              right-click → **Open** the first time (unsigned).
+            - **Windows** (`.exe`): run the installer; if SmartScreen warns, click
+              *More info → Run anyway* (unsigned internal app).
+            - **Linux** (`.AppImage`): `chmod +x` it and run.
+          files: |
+            ai-studio/dist/*.dmg
+            ai-studio/dist/*.zip
+            ai-studio/dist/*.exe
+            ai-studio/dist/*.AppImage
