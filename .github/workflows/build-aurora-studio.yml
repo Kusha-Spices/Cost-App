@@ -64,9 +64,22 @@ jobs:
         run: npm test
 
       - name: Build installer (${{ matrix.platform }})
+        shell: bash
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"   # unsigned dev build; no signing hang
-        run: npx --no-install electron-builder --${{ matrix.platform }} --publish never
+        run: |
+          # Retry: the Electron binary download from GitHub can EOF transiently.
+          for attempt in 1 2 3 4; do
+            echo "::group::electron-builder attempt $attempt"
+            if npx --no-install electron-builder --${{ matrix.platform }} --publish never; then
+              echo "::endgroup::"; echo "build succeeded on attempt $attempt"; exit 0
+            fi
+            echo "::endgroup::"
+            echo "attempt $attempt failed; clearing cache and retrying in $((attempt*10))s…"
+            rm -rf "$HOME/Library/Caches/electron" "$HOME/.cache/electron" 2>/dev/null || true
+            sleep $((attempt*10))
+          done
+          echo "electron-builder failed after 4 attempts"; exit 1
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
